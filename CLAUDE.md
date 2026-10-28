@@ -61,8 +61,6 @@ class Harvester:
 ## Build order
 Epic 1 Foundation -> 2 Source registry/API -> 3 Git harvester -> 4 Scheduler/incremental -> 5 Ontology updater -> 6 Retrieval MCP -> 7 Upload harvester -> 8 Demo, evals, docs. Get a thin end-to-end demo working by the halfway point, even if rough.
 
-## Security
-Use a dedicated service account per harvester and only non-sensitive sample sources for the demo. Questions on access model, credentials or data flows go to the Inspira security team at security@inspirafinancial.com.
 
 ## Demo script
 1. `POST /sources` with a new Git repo.
