@@ -192,4 +192,4 @@ Suggested additions (not yet in Jira): a `context-admin` MCP story under Epic 2 
 2. Next: Snowflake/Confluence/Tableau harvesters, live MCP fallback, review queue UI.
 3. Scale: dedicated graph store only if traversal depth or latency requires it; AlloyDB for vectors at volume; per-user ACL propagation from source systems.
 
-Security decisions (identity model, per-source access, data flows to LLMs) should be reviewed with the Inspira security team at security@inspirafinancial.com before going beyond a sandbox.
+
