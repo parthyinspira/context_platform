@@ -17,6 +17,12 @@ Tracking: Jira project `KAN` (epics 1-8). Docs: Confluence space `SD`, page "Con
 
 Flow: source registered -> harvester (discover/fetch/normalize) -> `harvest.completed` -> normalizer writes entities, edges, chunks, embeddings -> ontology updater (propose, validate, apply) -> `ontology.updated`.
 
+## Scope and design docs
+- `docs/HACKATHON_SCOPE.md`: what is in and out for the hackathon (UI with knowledge graph, harvesters, validator, dispatcher).
+- `docs/HARVESTERS.md`: harvester lifecycle, scoping rules per source, validator, skills and rules. Read before touching any harvester.
+- `docs/ARCHITECTURE.md`: topology, data hierarchy, MCP design, portability.
+- Harvesters must follow the budgets and metadata-first rules in `docs/HARVESTERS.md`; a run that fails validation is quarantined, never published.
+
 ## Contracts
 
 ### Harvester interface
