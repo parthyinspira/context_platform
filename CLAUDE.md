@@ -11,7 +11,7 @@ Tracking: Jira project `KAN` (epics 1-8). Docs: Confluence space `SD`, page "Con
 - Events `source.registered`, `harvest.completed`, `ontology.updated` go through an `EventBus` interface. Default implementation: Postgres outbox (no extra infra); adapters for Pub/Sub and Azure Service Bus.
 - Uploads and raw payloads use an `ObjectStore` interface: local folder/MinIO by default; adapters for GCS and Azure Blob. Raw metadata may also live in Postgres `jsonb`.
 - Knowledge, edges and vectors: Postgres + pgvector in a container (Cloud SQL / Azure Database for PostgreSQL Flexible Server in cloud). No cloud-specific SQL.
-- Embeddings/LLMs through an `LLMProvider` interface: Anthropic API or local Ollama by default; adapters for Vertex AI and Azure AI Foundry.
+- LLMs through an `LLMProvider` interface: Meta Llama (hackathon credits, OpenAI-compatible endpoint configured in `.env`) by default; adapters for Anthropic, Vertex AI and Azure AI Foundry. Embeddings through a separate `EmbeddingProvider`: a local open model (Ollama or sentence-transformers) in its own container by default.
 - Secrets through a `SecretStore` interface: env/Docker secrets locally; Secret Manager / Key Vault in cloud. One identity per component.
 - Context service and MCP servers are stateless containers (Cloud Run / Container Apps in cloud).
 
@@ -61,6 +61,8 @@ class Harvester:
 - Retrieval results always include source link, `harvested_at` and `sensitivity`.
 
 ## Workflow
+Development tooling: stories are picked up from Jira (via Kepler or the Atlassian MCP) and built with Claude Code in VS Code; every story gets a `story-reviewer` agent pass before merge (see `docs/DEV_WORKFLOW.md` and `docs/UI_DESIGN.md`, `docs/DEMO_AGENTS.md`).
+
 1. Work one Jira story (`KAN-n`) per branch and PR; branch name `kan-<n>-short-slug`.
 2. Read the story's acceptance criteria and the Confluence Contracts page first.
 3. Implement with tests; run lint and tests before opening the PR.
