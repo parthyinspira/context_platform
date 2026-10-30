@@ -1,18 +1,19 @@
 # Context Platform
 
-Hackathon project on Google Cloud: harvest registered sources (Git repos, documents, uploads) on a schedule, normalize them into Postgres (+ pgvector), keep an ontology/graph up to date, and serve context to agents via MCP.
+Container-first project (hackathon on local Docker + a GCP free-trial deploy; later reused on Azure): harvest registered sources (Git repos, documents, uploads) on a schedule, normalize them into Postgres (+ pgvector), keep an ontology/graph up to date, and serve context to agents via MCP.
 
 Tracking: Jira project `KAN` (epics 1-8). Docs: Confluence space `SD`, page "Context Platform (Hackathon) - Project Home" and its child "Contracts". The Confluence Contracts page is the source of truth for the schema, ontology and harvester interface; update it in the same PR when you change any of them.
 
 ## Architecture
+- Everything runs as containers (`docker compose` locally). Cloud services are reached only through small adapter interfaces so the same images run on local Docker, GCP and Azure.
 - Source registry (`sources` table) drives onboarding and scheduling. A new source is a row, never a code change.
-- Harvesters run as Cloud Run Jobs, one per source type, launched by a dispatcher that Cloud Scheduler calls every few minutes.
-- Pub/Sub topics: `source.registered`, `harvest.completed`, `ontology.updated`.
-- Uploads land in Cloud Storage; object-finalize events publish to Pub/Sub.
-- Raw payloads: Firestore (or GCS). Knowledge, edges and vectors: Cloud SQL Postgres + pgvector.
-- Embeddings/LLMs through Vertex AI (Claude and Llama behind one config setting).
-- Context service and MCP tools (`search_context`, `get_related`) run on Cloud Run.
-- Secrets only in Secret Manager; one service account per component.
+- Harvesters are one-off containers, one per source type, launched by a dispatcher on a schedule (compose scheduler locally; Cloud Run Jobs / Container Apps Jobs in cloud).
+- Events `source.registered`, `harvest.completed`, `ontology.updated` go through an `EventBus` interface. Default implementation: Postgres outbox (no extra infra); adapters for Pub/Sub and Azure Service Bus.
+- Uploads and raw payloads use an `ObjectStore` interface: local folder/MinIO by default; adapters for GCS and Azure Blob. Raw metadata may also live in Postgres `jsonb`.
+- Knowledge, edges and vectors: Postgres + pgvector in a container (Cloud SQL / Azure Database for PostgreSQL Flexible Server in cloud). No cloud-specific SQL.
+- Embeddings/LLMs through an `LLMProvider` interface: Anthropic API or local Ollama by default; adapters for Vertex AI and Azure AI Foundry.
+- Secrets through a `SecretStore` interface: env/Docker secrets locally; Secret Manager / Key Vault in cloud. One identity per component.
+- Context service and MCP servers are stateless containers (Cloud Run / Container Apps in cloud).
 
 Flow: source registered -> harvester (discover/fetch/normalize) -> `harvest.completed` -> normalizer writes entities, edges, chunks, embeddings -> ontology updater (propose, validate, apply) -> `ontology.updated`.
 
@@ -47,7 +48,9 @@ class Harvester:
 - Python 3.12, type hints, small modules. One harvester class per source type in `harvesters/`, registered by `source.type`.
 - Schema changes go through migrations only. Never edit tables by hand.
 - Record `embedding_model` on every chunk; chunk by structure (function, section, table), not fixed windows.
-- Never store or log secret values; `credentials_ref` points to Secret Manager.
+- Never store or log secret values; `credentials_ref` is a key resolved by `SecretStore`.
+- No direct imports of cloud SDKs outside `adapters/`; business logic depends on the interfaces only.
+- Every service has a Dockerfile and runs from `docker compose up`.
 - Tests for every harvester (fixture repos/docs) and for idempotent re-harvest.
 - Retrieval results always include source link, `harvested_at` and `sensitivity`.
 
@@ -59,7 +62,7 @@ class Harvester:
 5. After merge, move the story to Done and add a one-line comment with the PR link.
 
 ## Build order
-Epic 1 Foundation -> 2 Source registry/API -> 3 Git harvester -> 4 Scheduler/incremental -> 5 Ontology updater -> 6 Retrieval MCP -> 7 Upload harvester -> 8 Demo, evals, docs. Get a thin end-to-end demo working by the halfway point, even if rough.
+Epic 1 Foundation (compose stack, Postgres+pgvector, adapters, CI) -> 2 Source registry/API -> 3 Git harvester -> 4 Scheduler/incremental -> 5 Ontology updater -> 6 Retrieval MCP -> 7 Upload harvester -> 8 Demo, evals, docs. Get a thin end-to-end demo working by the halfway point, even if rough.
 
 
 ## Demo script

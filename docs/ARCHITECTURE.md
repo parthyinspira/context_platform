@@ -20,7 +20,7 @@ flowchart TD
         WH[Git webhook / GCS finalize]
     end
 
-    subgraph Harvest["Harvester framework (Cloud Run Jobs)"]
+    subgraph Harvest["Harvester framework (containers / jobs)"]
         HG[Git harvester]
         HD[Doc harvester]
         HU[Upload harvester]
@@ -28,7 +28,7 @@ flowchart TD
     end
 
     subgraph Process["Normalization + ontology"]
-        RAW[(Raw payloads<br/>Firestore / GCS)]
+        RAW[(Raw payloads<br/>Postgres jsonb / ObjectStore)]
         NORM[Normalizer<br/>entities, edges, chunks, embeddings]
         ONT[Ontology updater<br/>propose, validate, apply]
     end
@@ -40,7 +40,7 @@ flowchart TD
         PRP[(proposed_changes)]
     end
 
-    subgraph Serve["Serving (Cloud Run)"]
+    subgraph Serve["Serving (containers)"]
         CTX[Context service<br/>hybrid search + graph traversal]
         MCP1[Retrieval MCP]
         MCP2[Admin MCP]
@@ -68,16 +68,16 @@ flowchart TD
 
 ### Layers and responsibilities
 
-| Layer | Component | GCP service | Responsibility |
+| Layer | Component | Runtime (local / GCP / Azure) | Responsibility |
 |---|---|---|---|
 | 0 Sources | Git, docs, uploads | n/a | Systems of record; never modified |
-| 1 Control plane | Registry API, dispatcher, scheduler, webhooks | Cloud Run, Scheduler, Pub/Sub | Decide what to harvest and when |
-| 2 Harvest | One harvester per source type | Cloud Run Jobs | discover, fetch, emit raw objects incrementally |
-| 3 Normalize | Normalizer | Cloud Run Job | Raw to entities, edges, chunks, embeddings |
-| 4 Ontology | Updater | Cloud Run Job | Apply deterministic facts, queue uncertain ones |
+| 1 Control plane | Registry API, dispatcher, scheduler, webhooks | compose scheduler + Postgres outbox / Cloud Run, Scheduler, Pub/Sub / Container Apps, Service Bus | Decide what to harvest and when |
+| 2 Harvest | One harvester per source type | one-off containers / Cloud Run Jobs / Container Apps Jobs | discover, fetch, emit raw objects incrementally |
+| 3 Normalize | Normalizer | container job / Cloud Run Job / Container Apps Job | Raw to entities, edges, chunks, embeddings |
+| 4 Ontology | Updater | container job / Cloud Run Job / Container Apps Job | Apply deterministic facts, queue uncertain ones |
 | 5 Store | entities, edges, chunks, proposed_changes | Cloud SQL + pgvector | Single source of truth for knowledge |
-| 6 Serve | Context service | Cloud Run | Hybrid search, graph traversal, ACL filtering |
-| 7 Interface | MCP servers | Cloud Run | The contract agents use |
+| 6 Serve | Context service | container / Cloud Run / Container Apps | Hybrid search, graph traversal, ACL filtering |
+| 7 Interface | MCP servers | container / Cloud Run / Container Apps | The contract agents use |
 
 ## 2. Data hierarchy
 
@@ -124,7 +124,7 @@ Agent question
 
 ## 3. MCP topology
 
-Each MCP server is a thin, stateless Cloud Run service over the context service. Transport: streamable HTTP. All tool results include citations and freshness.
+Each MCP server is a thin, stateless container service over the context service. Transport: streamable HTTP. All tool results include citations and freshness.
 
 ```
 Agent / LLM (MCP client)
@@ -176,7 +176,7 @@ User: "What breaks if we change table CUSTOMER?"
 
 | Epic | Delivers |
 |---|---|
-| 1 Foundation | GCP project, Cloud SQL, schema, CI |
+| 1 Foundation | compose stack, Postgres + pgvector, adapters, schema, CI |
 | 2 Source registry and API | Control plane, `source.registered` |
 | 3 Git harvester | First harvester, entities and chunks |
 | 4 Scheduler and incremental | Dispatcher, idempotent upserts, tombstones |
@@ -186,6 +186,19 @@ User: "What breaks if we change table CUSTOMER?"
 | 8 Demo, evals, docs | Golden questions, demo, docs |
 
 Suggested additions (not yet in Jira): a `context-admin` MCP story under Epic 2 or 6, and MCP auth/audit under Epic 6.
+
+## 4b. Portability (containers first, Azure-ready)
+
+| Concern | Interface | Local default | GCP | Azure |
+|---|---|---|---|---|
+| Events | `EventBus` | Postgres outbox | Pub/Sub | Service Bus |
+| Files / raw | `ObjectStore` | folder or MinIO | GCS | Blob Storage |
+| Secrets | `SecretStore` | env / Docker secrets | Secret Manager | Key Vault |
+| LLM / embeddings | `LLMProvider` | Anthropic API or Ollama | Vertex AI | Azure AI Foundry |
+| Scheduling | dispatcher | compose scheduler | Cloud Scheduler + Cloud Run Jobs | Container Apps Jobs (cron) |
+| Database | plain SQL + pgvector | Postgres container | Cloud SQL | Azure Database for PostgreSQL Flexible Server |
+
+Rule: business logic imports only the interfaces; cloud SDKs live in `adapters/`. Hackathon: run locally, deploy once to GCP (free trial). Later: deploy the same images to Azure by switching adapter config.
 
 ## 5. Evolution path
 1. Hackathon: Postgres + pgvector for relationships; one retrieval MCP; Git and upload harvesters.
