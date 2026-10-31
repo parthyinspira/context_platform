@@ -1,13 +1,13 @@
 # Verification
 
 Status: PASS
-Date: 2026-10-31   Branch: kepler/kan-82-secret-pii-scanner-redaction
+Date: 2026-10-31 (round 2 fix same day)   Branch: kepler/kan-82-secret-pii-scanner-redaction
 
 ## Checks
 | Check | Result |
 |---|---|
 | Lint | PASS — `ruff check api scheduler adapters --config pyproject.toml`: All checks passed |
-| Tests (adapters) | PASS — `python -m pytest adapters/tests -q`: 24 passed (9 new scanner tests, 1 new writer-redaction test, 2 existing writer tests updated for new `metadata.sensitivity` field, rest unaffected) |
+| Tests (adapters) | PASS — `python -m pytest adapters/tests -q`: 25 passed (10 scanner tests incl. the round-2 credit-card fix, 1 writer-redaction test, 2 existing writer tests updated for new `metadata.sensitivity` field, rest unaffected) |
 | Tests (api) | PASS — `python -m pytest api/tests -q`: 17 passed, unaffected |
 | Tests (scheduler) | PASS — `(cd scheduler && python -m pytest -q)`: 1 passed, unaffected |
 | contract-check | No mismatches: no schema/ontology/harvester-interface/MCP contract touched (`chunks.metadata` is already `jsonb`, no migration needed); no cloud SDK imports in `adapters/scanning` or `adapters/chunks`; business logic unchanged outside the one wired call site |
@@ -36,6 +36,9 @@ spec_check OK (verify): spec/changes/kan-82-secret-pii-scanner-redaction
 | Redacts before storage | `PostgresChunkWriter.write()` stores redacted text, never the raw secret | PASS |
 | Sets sensitivity | `metadata.sensitivity` is `restricted` (secret found), `confidential` (PII only), `internal` (no findings) | PASS |
 | Tested with seeded secrets | All scanner and writer tests use fake, clearly-non-real, commented seeded secret values | PASS |
+
+## Review round 2 fix
+`story-reviewer` flagged `[blocking]`: `proposal.md` and the spec delta promised credit-card-shaped PII detection that was never implemented or tested. Fixed by adding the `credit_card` pattern to `adapters/scanning/scanner.py` and `test_detects_and_redacts_credit_card_number` to `adapters/tests/test_scanner.py`. Re-ran `python -m pytest adapters/tests -q` (25 passed) and `ruff check adapters --config pyproject.toml` (all checks passed) after the fix. Two `[nit]` (non-blocking) findings were also raised (a two-pass loop in `_derive_sensitivity`, and `metadata["redacted"]` being absent rather than `False` when no findings) — left as-is, consistent with the existing tests and not required for correctness.
 
 ## Not verified
 - No live `docker compose` run was needed or performed: this change touches only a pure Python module (`adapters/scanning`) and one existing storage adapter (`adapters/chunks/writer.py`), with no new service, route, container, or DB schema — covered entirely by the adapters test suite (24 passed) plus lint. No Docker/DB/credentials were required.

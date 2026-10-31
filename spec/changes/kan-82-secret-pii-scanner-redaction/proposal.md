@@ -36,6 +36,6 @@ Capabilities: spec/capabilities/harvester-framework.md (clarifies the existing "
 - No `harvesters/` package exists yet (Epic 3 not built), so there's no harvester call site to wire today beyond `PostgresChunkWriter`; future harvester work should call `adapters.scanning.scan_and_redact` on fetched text before normalization, per `docs/HARVESTERS.md` rule 8.
 
 ## Changes during development
-(none)
+- Round 1 review (`story-reviewer`) found `[blocking]`: the proposal and spec delta committed to detecting "credit-card-shaped numbers" as PII, but the initial implementation only had `email` and `ssn` patterns — no credit-card pattern or test. Fixed by adding the `credit_card` pattern (`adapters/scanning/scanner.py`) and a test (`adapters/tests/test_scanner.py::test_detects_and_redacts_credit_card_number`), so the implementation now matches what was proposed.
 
 ## Approved by: auto (user started spec-auto), 2026-10-30; human review at PR

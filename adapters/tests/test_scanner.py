@@ -18,6 +18,7 @@ FAKE_PRIVATE_KEY = (
 FAKE_CONN_STRING = "postgres://dbuser:fakeSecretPass123@db.example.com:5432/app"
 FAKE_EMAIL = "jane.doe@example.com"
 FAKE_SSN = "123-45-6789"
+FAKE_CREDIT_CARD = "4111 1111 1111 1111"  # seeded fixture, a well-known test-only card number
 
 
 def test_detects_and_redacts_aws_key() -> None:
@@ -76,6 +77,14 @@ def test_pii_detected_without_a_secret_sets_confidential() -> None:
     assert FAKE_EMAIL not in result.redacted_text
     assert FAKE_SSN not in result.redacted_text
     assert all(f.category == "pii" for f in result.findings)
+    assert result.sensitivity == "confidential"
+
+
+def test_detects_and_redacts_credit_card_number() -> None:
+    result = scan_and_redact(f"Card on file: {FAKE_CREDIT_CARD}")
+
+    assert FAKE_CREDIT_CARD not in result.redacted_text
+    assert any(f.kind == "credit_card" and f.category == "pii" for f in result.findings)
     assert result.sensitivity == "confidential"
 
 

@@ -73,6 +73,16 @@ _PATTERNS: list[tuple[str, str, re.Pattern[str], int]] = [
     ),
     ("email", "pii", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"), 0),
     ("ssn", "pii", re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), 0),
+    # Credit-card-shaped number: 13-16 digits, optionally grouped with spaces or
+    # dashes. Intentionally broad (flagged in proposal.md as a known
+    # false-positive risk) — it only affects redaction/sensitivity, which is
+    # the safe direction to err in.
+    (
+        "credit_card",
+        "pii",
+        re.compile(r"\b(?:\d[ -]?){12,15}\d\b"),
+        0,
+    ),
 ]
 
 
