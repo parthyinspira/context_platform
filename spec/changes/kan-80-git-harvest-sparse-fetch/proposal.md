@@ -14,7 +14,7 @@ Jira: https://inspiradataintegration.atlassian.net/browse/KAN-80   Epic: 3 Git h
 - Every discovered path gets a `Manifest` entry; excluded paths, oversize paths and unchanged (incremental skip) paths are recorded `skipped` with a reason; fetched paths are recorded `fetched`. The caller (not this story) persists the manifest via `ManifestStore` and advances `sources.last_cursor`.
 - New result type `GitHarvestResult(objects: list[RawObject], head_sha: str)` so the caller can read the new cursor to persist.
 - Budgets (`plan.budgets`) are enforced with the existing `harvesters.framework.budget.BudgetTracker`; hitting one stops the fetch loop cleanly (remaining discovered-but-not-yet-fetched paths stay `unaccounted` in the manifest, matching KAN-76/83's `PARTIAL` semantics — marking `harvest_runs.state = PARTIAL` is the dispatcher/run-loop's job, out of scope here).
-- Tests use a real local Git repository built from `fixtures/repos/java-sample` (plus `target/` files) as the fixture source, so partial clone and sparse-fetch behavior is exercised against real `git` rather than mocked.
+- Tests build real local Git repositories from scratch in a temp dir (synthetic files, including a `target/`-style excluded path), so partial clone and sparse-fetch behavior is exercised against real `git` rather than mocked.
 
 ## In scope
 - `harvesters/git/__init__.py`, `harvesters/git/sparse_fetch.py`, `harvesters/git/requirements*.txt` (if git pack needs its own deps — none expected, stdlib `subprocess` only).
@@ -41,6 +41,9 @@ Capabilities: `spec/capabilities/harvester-framework.md` (ADDED requirement "Git
 ## Risks and open questions
 - Partial clone (`--filter=blob:none`) over the local filesystem transport needs a recent `git` (2.36+ reliably supports file-transport partial clone); verified against the repo's installed `git` in develop/verify.
 - This function is deliberately not wired into the `Harvester` registry (`get_harvester("git")` still raises `UnknownSourceTypeError`) since `connect/discover/profile/plan` don't exist yet; a follow-up story assembles `GitHarvester` from this plus those pieces.
+
+## Changes during development
+- Review round 1 (story-reviewer, APPROVE WITH NITS, no blocking findings): corrected a factual nit — this story's text and `tasks.md` said tests were built from `fixtures/repos/java-sample`, but `harvesters/tests/test_git_sparse_fetch.py` actually builds synthetic repos from scratch in a temp dir; fixed the wording here, no test or code change.
 
 ## Approval
 Approved by: auto (user started spec-auto), 2026-10-31; human review at PR
