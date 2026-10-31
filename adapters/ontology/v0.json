@@ -1,0 +1,24 @@
+{
+  "version": "v0",
+  "entities": [
+    "Repository",
+    "Service",
+    "Module",
+    "Table",
+    "Column",
+    "Dashboard",
+    "Job",
+    "Document",
+    "Person",
+    "Team"
+  ],
+  "relations": [
+    "DEPENDS_ON",
+    "READS_FROM",
+    "WRITES_TO",
+    "DERIVED_FROM",
+    "DOCUMENTS",
+    "OWNED_BY",
+    "CONTAINS"
+  ]
+}
