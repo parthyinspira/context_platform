@@ -6,3 +6,6 @@ and applying it to their `Harvester` subclass. As each concrete package is
 added (starting with the Git harvester in a later story), import it here so
 registration happens on `import harvesters`.
 """
+from __future__ import annotations
+
+import harvesters.git  # noqa: F401  (registers GitHarvester for source type "git")
