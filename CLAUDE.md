@@ -29,13 +29,18 @@ Flow: source registered -> harvester (discover/fetch/normalize) -> `harvest.comp
 ### Harvester interface
 ```python
 class Harvester:
-    def discover(self, source) -> Iterable[ObjectRef]
-    def fetch(self, source, ref, cursor) -> RawObject
+    def connect(self, source) -> ConnectionResult
+    def discover(self, source) -> ScopeTree
+    def profile(self, source, scope) -> Profile
+    def plan(self, profile) -> HarvestPlan
+    def harvest(self, source, plan, cursor) -> Iterable[RawObject]
     def normalize(self, raw) -> list[Entity | Edge | Chunk]
+    def validate(self, plan, manifest) -> ValidationReport
 ```
 - Incremental via `sources.last_cursor`; upserts are idempotent, keyed by stable `external_id`.
 - Objects not seen in a harvest get `tombstoned_at`; retrieval excludes tombstoned rows.
 - Every record carries `source_id` and `harvested_at`.
+- Each run is tracked in `harvest_runs`, progressing CONNECTING -> DISCOVERING -> PROFILING -> PLANNED -> APPROVED -> HARVESTING -> VALIDATING -> PUBLISHED, or to QUARANTINED, FAILED or PARTIAL.
 
 ### Ontology v0
 - Entities: Repository, Service, Module, Table, Column, Dashboard, Job, Document, Person, Team.
@@ -49,6 +54,7 @@ class Harvester:
 - `entities(id, type, name, source_id, external_id, props jsonb, ontology_version, tombstoned_at)`
 - `edges(id, src_entity_id, dst_entity_id, relation, confidence, source_id, ontology_version)`
 - `chunks(id, entity_id, source_id, text, embedding vector, embedding_model, metadata jsonb, harvested_at)`
+- `harvest_runs(id, source_id, state, plan jsonb, manifest jsonb, error, started_at, updated_at)`
 - `proposed_changes(id, kind, payload jsonb, confidence, status, created_at)`
 
 ## Conventions
