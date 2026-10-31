@@ -32,6 +32,29 @@ A `HarvestPlan` SHALL hold include/exclude rules, a per-object size cap and budg
 - **When** a path is checked and the budgets are read
 - **Then** the path is included and every budget dimension is unset (unlimited)
 
+### Requirement: Stack rules
+The project SHALL provide deterministic include/exclude glob rules and a per-object size cap, as a `HarvestPlan`, for each stack named in `docs/HARVESTERS.md` section 4 (SQL/dbt, Java, .NET, Talend, shell/scripts, docs), loaded from YAML files under `harvesters/rules/` by `harvesters.framework.stack_rules.load_stack_rules(stack)`.
+
+#### Scenario: stack-rules-loaded-per-stack
+- **Given** the six stacks named in `docs/HARVESTERS.md` section 4
+- **When** `load_stack_rules(stack)` is called for each
+- **Then** it returns a `HarvestPlan` whose include patterns match the stack's documented "pull" column and whose `is_included` check rejects paths matching the stack's documented "skip" column
+
+#### Scenario: each-stack-plan-holds-size-cap
+- **Given** a stack's loaded `HarvestPlan`
+- **When** `size_cap_bytes` is read
+- **Then** it is set to the default per-object cap documented in `docs/HARVESTERS.md` rule 4
+
+#### Scenario: unknown-stack-raises
+- **Given** a stack name with no rules file under `harvesters/rules/`
+- **When** `load_stack_rules(stack)` is called
+- **Then** it raises `UnknownStackError` naming the unknown stack
+
+#### Scenario: talend-fixture-plans-only-item-and-properties
+- **Given** the Talend stack rules and every file path under `fixtures/repos/talend-sample/`
+- **When** each path is checked against the loaded plan
+- **Then** only `jobs/load_orders.item` and `jobs/load_orders.properties` are included; the jar, screenshot, project marker and README are all excluded
+
 ### Requirement: Budgets
 A run SHALL enforce budgets for files, bytes, time and tokens; on exceeding one it SHALL stop cleanly and mark the run PARTIAL.
 #### Scenario: budget hit
@@ -242,3 +265,35 @@ Given an approved `HarvestPlan` and a cursor, the Git harvest step SHALL fetch o
 - **Given** a plan with `budgets.max_files=1` and two included, under-cap files
 - **When** `harvest_git` runs
 - **Then** exactly one `RawObject` is returned, the second file is left `unaccounted` in the manifest (discovered but no outcome), and the function reports which budget was hit
+### Requirement: Harvester runs as a one-off container
+The project SHALL provide a runner (`harvesters/run.py`, entrypoint `python -m harvesters.run`) that, given a `source_id` and a `plan_id` (the id of an already `PLANNED`/`APPROVED` `harvest_runs` row, whose `plan` column holds the `HarvestPlan`), drives `connect -> discover -> harvest -> normalize -> validate` for the registered `Harvester` of that source's type, records each state transition and the manifest on the `harvest_runs` row, evaluates the result with `PublishQuarantineGate`, and publishes `harvest.completed` on the `EventBus` with the run id, source id, final state, and `published`/`warning` flags. The runner SHALL read `SOURCE_ID`, `PLAN_ID` and `DATABASE_URL` from the environment (overridable by CLI flags), and SHALL NOT import any cloud-provider SDK, so the same container image runs unmodified under `docker compose run`, a GCP Cloud Run Job and an Azure Container Apps Job.
+
+#### Scenario: runner-reads-source-id-and-plan-id-from-env-or-cli
+- **Given** `SOURCE_ID` and `PLAN_ID` set as environment variables and no CLI flags given
+- **When** the runner's argument parsing resolves its configuration
+- **Then** it uses the environment values; explicit `--source-id`/`--plan-id` CLI flags, when given, take precedence over the environment
+
+#### Scenario: runner-drives-full-lifecycle-to-published
+- **Given** an `APPROVED` `harvest_runs` row with a stored plan and a source whose type has a registered `Harvester` that connects successfully and whose `validate()` returns `PASS`
+- **When** the runner runs for that `source_id`/`plan_id`
+- **Then** `harvest_runs.state` is written through `HARVESTING`, `VALIDATING` and finally `PUBLISHED`, the manifest reflects every discovered/fetched object, and `harvest.completed` is published with `published=true`
+
+#### Scenario: runner-quarantines-on-failed-validation
+- **Given** the same setup but the harvester's `validate()` returns `FAIL`
+- **When** the runner runs
+- **Then** `harvest_runs.state` ends at `QUARANTINED`, `harvest.completed` is published with `published=false`, and the recorded error names the validation failure
+
+#### Scenario: runner-fails-cleanly-on-connect-error
+- **Given** a harvester whose `connect()` returns `ok=False`
+- **When** the runner runs
+- **Then** `harvest_runs.state` is written as `FAILED` with the connect error recorded, and no `VALIDATING` or `PUBLISHED`/`QUARANTINED` transition is written
+
+#### Scenario: runner-rejects-unknown-plan-id
+- **Given** a `plan_id` with no matching `harvest_runs` row, or one that belongs to a different `source_id`
+- **When** the runner runs
+- **Then** it exits with a non-zero status, raises a clear error, and writes no `harvest_runs` row
+
+#### Scenario: runner-is-platform-portable
+- **Given** `harvesters/Dockerfile` and `harvesters/run.py`
+- **When** they are inspected
+- **Then** the image's `ENTRYPOINT`/`CMD` takes no positional platform-specific arguments, all configuration comes from environment variables, and no module under `harvesters/` imports a cloud-provider SDK outside `adapters/`
