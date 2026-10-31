@@ -3,6 +3,7 @@ import uuid
 from typing import Any, Protocol
 
 from adapters.embedding.base import EmbeddingProvider
+from adapters.scanning import scan_and_redact
 
 from .base import ChunkWriter
 
@@ -33,7 +34,18 @@ class PostgresChunkWriter(ChunkWriter):
         text: str,
         metadata: dict[str, Any] | None = None,
     ) -> str:
-        vectors, embedding_model = self._embedding_provider.embed([text])
+        # Scan for secrets/PII and redact before anything is embedded or stored.
+        # See spec/capabilities/harvester-framework.md "Read-only and secret-safe"
+        # and docs/HARVESTERS.md rule 8 (Secrets and PII).
+        scan_result = scan_and_redact(text)
+        stored_text = scan_result.redacted_text
+
+        stored_metadata = dict(metadata or {})
+        stored_metadata["sensitivity"] = scan_result.sensitivity
+        if scan_result.findings:
+            stored_metadata["redacted"] = True
+
+        vectors, embedding_model = self._embedding_provider.embed([stored_text])
         chunk_id = str(uuid.uuid4())
 
         conn = self._connection_factory()
@@ -46,10 +58,10 @@ class PostgresChunkWriter(ChunkWriter):
                 chunk_id,
                 entity_id,
                 source_id,
-                text,
+                stored_text,
                 vectors[0],
                 embedding_model,
-                json.dumps(metadata or {}),
+                json.dumps(stored_metadata),
             ),
         )
         conn.commit()

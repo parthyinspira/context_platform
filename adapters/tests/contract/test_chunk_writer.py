@@ -31,7 +31,7 @@ def test_write_records_embedding_model_from_provider() -> None:
     assert row.embedding == [0.1, 0.2, 0.3]
     assert row.embedding_model == "nomic-embed-text"
     assert row.embedding_model  # never empty/None
-    assert row.metadata == {"section": "intro"}
+    assert row.metadata == {"section": "intro", "sensitivity": "internal"}
     assert conn.committed == 1
 
 
@@ -53,4 +53,21 @@ def test_write_defaults_metadata_to_empty_dict() -> None:
 
     writer.write("entity-1", "source-1", "no metadata given")
 
-    assert conn.rows[0].metadata == {}
+    assert conn.rows[0].metadata == {"sensitivity": "internal"}
+
+
+def test_write_redacts_secrets_before_storage_and_sets_sensitivity() -> None:
+    conn = FakeChunksConnection()
+    provider = StubEmbeddingProvider(vectors=[[0.1]], model="nomic-embed-text")
+    writer = PostgresChunkWriter(lambda: conn, provider)
+    fake_secret = "AKIAFAKEEXAMPLE12345"  # seeded fixture, not a real AWS key
+
+    writer.write("entity-1", "source-1", f"config has {fake_secret} inline")
+
+    row = conn.rows[0]
+    assert fake_secret not in row.text
+    assert "[REDACTED:aws_access_key_id]" in row.text
+    assert row.metadata["sensitivity"] == "restricted"
+    assert row.metadata["redacted"] is True
+    # The raw secret must never reach the embedding provider either.
+    assert all(fake_secret not in call_text for call in provider.calls for call_text in call)
