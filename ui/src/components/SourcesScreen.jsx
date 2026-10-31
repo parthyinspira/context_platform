@@ -1,11 +1,25 @@
 import { useEffect, useState } from "react";
 import { listSources, runSource } from "../api.js";
+import { AddSourceWizard } from "./AddSourceWizard.jsx";
 
 export function SourcesScreen({ onRunStarted }) {
   const [state, setState] = useState("loading");
   const [sources, setSources] = useState([]);
   const [lastRunBySourceId, setLastRunBySourceId] = useState({});
   const [runError, setRunError] = useState(null);
+  const [addingSource, setAddingSource] = useState(false);
+
+  function loadSources() {
+    setState("loading");
+    return listSources()
+      .then((rows) => {
+        setSources(rows);
+        setState(rows.length === 0 ? "empty" : "success");
+      })
+      .catch(() => {
+        setState("error");
+      });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +38,18 @@ export function SourcesScreen({ onRunStarted }) {
       cancelled = true;
     };
   }, []);
+
+  if (addingSource) {
+    return (
+      <AddSourceWizard
+        onCancel={() => setAddingSource(false)}
+        onSourceCreated={() => {
+          setAddingSource(false);
+          loadSources();
+        }}
+      />
+    );
+  }
 
   async function handleRun(sourceId) {
     setRunError(null);
@@ -53,12 +79,18 @@ export function SourcesScreen({ onRunStarted }) {
       <div data-testid="sources-empty">
         <p>No sources yet.</p>
         <p>Register a source to start harvesting.</p>
+        <button type="button" onClick={() => setAddingSource(true)}>
+          Add source
+        </button>
       </div>
     );
   }
 
   return (
     <div>
+      <button type="button" onClick={() => setAddingSource(true)}>
+        Add source
+      </button>
       {runError && (
         <p data-testid="run-error" role="alert">
           {runError}

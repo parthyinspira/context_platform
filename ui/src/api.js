@@ -18,3 +18,27 @@ export async function runSource(sourceId) {
   }
   return response.json();
 }
+
+export async function testConnection(payload) {
+  const response = await fetch(`${API_BASE_URL}/sources/test-connection`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`POST /sources/test-connection failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function createSource(payload) {
+  const response = await fetch(`${API_BASE_URL}/sources`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`POST /sources failed with ${response.status}`);
+  }
+  return response.json();
+}

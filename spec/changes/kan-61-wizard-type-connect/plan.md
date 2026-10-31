@@ -19,10 +19,10 @@ Out: steps 3-5 (discover/plan/run — KAN-62/63); multiple source types' credent
 - The connect step SHALL show loading, success and error states for the "Test connection" action using the shared state-rendering primitives (`Skeleton`/`ErrorBanner`), consistent with the rest of the app. (scenario: Given "Test connection" is in flight, When rendered, Then a loading indicator is shown instead of a stale result)
 
 ## Tasks
-- [ ] 1. `ui/src/api.js`: add `testConnection(payload)` calling `POST /sources/test-connection` (test: resolves/rejects per mock fetch)
-- [ ] 2. `ui/src/components/AddSourceWizard.jsx` step 1 (type tiles) using `Stepper` (test: six tiles render, only Git enabled/selectable)
-- [ ] 3. `AddSourceWizard` step 2 (connect form + Test connection) (tests: success state, error state; masked field never shows prior value on re-render)
-- [ ] 4. "Add source" entry point button on `SourcesScreen.jsx` opening the wizard
+- [x] 1. `ui/src/api.js`: add `testConnection(payload)` and `createSource(payload)` calling `POST /sources/test-connection` / `POST /sources` (tests: resolves/rejects per mock fetch)
+- [x] 2. `ui/src/components/AddSourceWizard.jsx` step 1 (type tiles) using `Stepper` (test: six tiles render, only Git enabled/selectable)
+- [x] 3. `AddSourceWizard` step 2 (connect form + Test connection) (tests: success state, error state; masked field never shows prior value on re-render)
+- [x] 4. "Add source" entry point button on `SourcesScreen.jsx` opening the wizard, refreshing the list once a source is created
 
 ## Risks / not verifiable here
 - Only the Git credential form is implemented; other types' forms are explicitly "Coming soon" per scope, matching the AC's "credential form per type" as "the types that exist get a form, the rest are visibly disabled" (no hidden/broken forms).

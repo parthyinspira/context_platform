@@ -78,4 +78,24 @@ describe("SourcesScreen", () => {
     expect(onRunStarted).not.toHaveBeenCalled();
     expect(screen.getByTestId("sources-table")).toBeInTheDocument();
   });
+
+  it("opens the add-source wizard and refreshes the list once a source is created", async () => {
+    const listSources = vi.spyOn(api, "listSources").mockResolvedValue([]);
+    render(<SourcesScreen onRunStarted={() => {}} />);
+    await screen.findByTestId("sources-empty");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add source" }));
+    expect(screen.getByTestId("add-source-wizard")).toBeInTheDocument();
+
+    listSources.mockResolvedValue([SOURCE]);
+    fireEvent.click(screen.getByTestId("type-tile-git"));
+    vi.spyOn(api, "testConnection").mockResolvedValue({ ok: true, error: null });
+    fireEvent.click(screen.getByTestId("test-connection-button"));
+    await screen.findByTestId("connect-success");
+    vi.spyOn(api, "createSource").mockResolvedValue(SOURCE);
+    fireEvent.click(screen.getByTestId("add-source-submit"));
+
+    await screen.findByTestId("sources-table");
+    expect(listSources).toHaveBeenCalledTimes(2);
+  });
 });
