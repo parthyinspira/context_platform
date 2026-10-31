@@ -11,14 +11,14 @@ export function App() {
   }, [theme]);
 
   return (
-    <div className="app-shell">
+    <div className="flex h-full bg-bg-canvas text-text-primary">
       <NavRail active="Graph" />
-      <div className="app-main">
+      <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           theme={theme}
           onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
         />
-        <main className="app-content">
+        <main className="p-6">
           <p>Context Platform</p>
         </main>
       </div>

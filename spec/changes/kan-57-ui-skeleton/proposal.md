@@ -31,7 +31,8 @@ Capabilities: `spec/capabilities/foundation.md` (UI service, already covered by 
 - Docker Desktop may not be available in this environment to exercise `docker compose up`; build-only verification (`docker build`, `npm run build`, `vite build`) and container `node --test`/`vitest` runs stand in, noted explicitly in `verification.md` if so.
 
 ## Changes during development
-(none)
+- Round 1 reviewer finding ([blocking]): Tailwind was scaffolded but unused (`npm run build` warned "no utility classes detected"); `tailwind.config.js` did not read `ui/src/tokens.json`. Fixed by generating `theme.extend.colors`/`fontFamily`/`borderRadius` from `tokens.json` and switching `App.jsx`, `NavRail.jsx`, `TopBar.jsx` to Tailwind utility classes backed by the CSS custom properties `theme.js` sets; removed the now-redundant hand-written CSS in `index.css`.
+- Round 1 reviewer nit: Dockerfile `HEALTHCHECK` hardcoded port 3000 instead of respecting `$PORT`; fixed to read `process.env.PORT`.
 
 ## Approval
 Approved by: auto (user started spec-auto), 2026-10-30; human review at PR

@@ -1,7 +1,10 @@
 # Verification
 
 Status: PASS
-Date: 2026-10-30   Commit: e0e3815 (working tree, pre-PR)
+Date: 2026-10-30   Commit: 4f0e3d4 (PR #9, pre-reviewer-fix) / re-verified after reviewer round 1 fixes
+
+## Reviewer round 1
+`story-reviewer` returned APPROVE WITH NITS, with one [blocking] finding (Tailwind scaffolded but unused, contradicting the "styled with Tailwind CSS driven by tokens.json" requirement text) and two nits (duplicated light-theme CSS fallback, Dockerfile healthcheck hardcoding port 3000). All three fixed: `tailwind.config.js` now derives `theme.extend.colors`/`fontFamily`/`borderRadius` from `ui/src/tokens.json`; `App.jsx`/`NavRail.jsx`/`TopBar.jsx` use Tailwind utility classes against those tokens; the redundant hand-written CSS block was removed; the Dockerfile `HEALTHCHECK` now reads `$PORT`. Re-ran `npm test` (23/23 pass), `npm run build` (no longer warns "no utility classes detected"), and `docker build`/`docker run` (`/health` → `{"status":"ok"}`) after the fix.
 
 ## Checks
 | Check | Result |
