@@ -19,10 +19,10 @@ Out: persisting the selection anywhere other than wizard state (it is passed to 
 - A "select recommended" action SHALL check every leaf node in the tree in one action. (scenario: Given no nodes are checked, When "select recommended" is activated, Then every leaf node becomes checked)
 
 ## Tasks
-- [ ] 1. `ui/src/api.js`: add `discoverSource(sourceId)` calling `POST /sources/{id}/discover` (test: resolves with tree shape)
-- [ ] 2. Wizard step 3 component wiring `ScopeTree` to discover results with checkbox state + parent/child propagation (tests: render with sizes/counts, parent toggles children)
-- [ ] 3. Search input filtering the tree (test: filters to matches + ancestors)
-- [ ] 4. "Select recommended" button (test: selects all leaves)
+- [x] 1. `ui/src/api.js`: add `discoverSource(sourceId)` calling `POST /sources/{id}/discover` (test: resolves with tree shape)
+- [x] 2. Wizard step 3 component wiring `ScopeTree` to discover results with checkbox state + parent/child propagation (tests: render with sizes/counts, parent toggles children)
+- [x] 3. Search input filtering the tree (test: filters to matches + ancestors)
+- [x] 4. "Select recommended" button (test: selects all leaves)
 
 ## Risks / not verifiable here
 - "Recommended" has no scoring signal in `Profile`/`ScopeTree` today (no per-node recommendation flag); minimal interpretation is "select all leaves", documented above rather than inventing a scoring heuristic out of scope for this story.

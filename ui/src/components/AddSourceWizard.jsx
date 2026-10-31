@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Stepper } from "./Stepper.jsx";
 import { Skeleton } from "./Skeleton.jsx";
 import { ErrorBanner } from "./ErrorBanner.jsx";
-import { createSource, testConnection } from "../api.js";
+import { ScopeTree } from "./ScopeTree.jsx";
+import { createSource, discoverSource, testConnection } from "../api.js";
 
 // Hackathon-minimal defaults for fields the wizard doesn't collect yet
 // (schedule/owner/sensitivity are required by POST /sources but out of
@@ -20,7 +21,57 @@ const SOURCE_TYPES = [
   { id: "tableau", label: "Tableau", enabled: false },
 ];
 
-const STEPS = [{ label: "Type" }, { label: "Connect" }];
+const STEPS = [{ label: "Type" }, { label: "Connect" }, { label: "Discover" }];
+
+function scopeNodeFromApi(node) {
+  return {
+    id: node.id,
+    label: node.name,
+    count: node.size_hint ?? undefined,
+    checked: false,
+    children: (node.children ?? []).map(scopeNodeFromApi),
+  };
+}
+
+function setAllChecked(nodes, checked) {
+  return nodes.map((n) => ({ ...n, checked, children: setAllChecked(n.children ?? [], checked) }));
+}
+
+function toggleTree(nodes, targetId) {
+  return nodes.map((n) => {
+    if (n.id === targetId) {
+      const next = !n.checked;
+      return { ...n, checked: next, children: setAllChecked(n.children ?? [], next) };
+    }
+    if (n.children?.length) {
+      const children = toggleTree(n.children, targetId);
+      return { ...n, checked: children.every((c) => c.checked), children };
+    }
+    return n;
+  });
+}
+
+function matchesQuery(node, query) {
+  if (node.label.toLowerCase().includes(query)) return true;
+  return (node.children ?? []).some((c) => matchesQuery(c, query));
+}
+
+function filterTree(nodes, query) {
+  if (!query) return nodes;
+  return nodes
+    .filter((n) => matchesQuery(n, query))
+    .map((n) => ({ ...n, children: filterTree(n.children ?? [], query) }));
+}
+
+function selectAllLeaves(nodes) {
+  return nodes.map((n) => {
+    if (!n.children?.length) {
+      return { ...n, checked: true };
+    }
+    const children = selectAllLeaves(n.children);
+    return { ...n, children, checked: children.every((c) => c.checked) };
+  });
+}
 
 export function AddSourceWizard({ onSourceCreated, onCancel }) {
   const [step, setStep] = useState(0);
@@ -32,6 +83,10 @@ export function AddSourceWizard({ onSourceCreated, onCancel }) {
   const [testError, setTestError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [createdSource, setCreatedSource] = useState(null);
+  const [scopeState, setScopeState] = useState("idle"); // idle | loading | success | error
+  const [scopeNodes, setScopeNodes] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   function selectType(sourceType) {
     setType(sourceType);
@@ -77,6 +132,8 @@ export function AddSourceWizard({ onSourceCreated, onCancel }) {
         sensitivity: DEFAULT_SENSITIVITY,
       });
       setPendingCredentials("");
+      setCreatedSource(source);
+      setStep(2);
       onSourceCreated?.(source);
     } catch {
       setSubmitError("Could not create the source");
@@ -84,6 +141,29 @@ export function AddSourceWizard({ onSourceCreated, onCancel }) {
       setSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    if (step !== 2 || !createdSource) return;
+    let cancelled = false;
+    setScopeState("loading");
+    discoverSource(createdSource.id)
+      .then((tree) => {
+        if (cancelled) return;
+        setScopeNodes((tree.roots ?? []).map(scopeNodeFromApi));
+        setScopeState("success");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setScopeState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, createdSource]);
+
+  const visibleScopeNodes = filterTree(scopeNodes, searchQuery.trim().toLowerCase());
+  const scopeTreeRenderState =
+    scopeState === "success" && scopeNodes.length === 0 ? "empty" : scopeState;
 
   return (
     <div data-testid="add-source-wizard">
@@ -152,6 +232,35 @@ export function AddSourceWizard({ onSourceCreated, onCancel }) {
           <button type="button" onClick={() => setStep(0)}>
             Back
           </button>
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div data-testid="wizard-step-discover">
+          <label>
+            Search
+            <input
+              data-testid="scope-search-input"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            data-testid="select-recommended-button"
+            onClick={() => setScopeNodes((nodes) => selectAllLeaves(nodes))}
+          >
+            Select recommended
+          </button>
+          <ScopeTree
+            state={scopeTreeRenderState}
+            nodes={visibleScopeNodes}
+            onToggle={(node) => setScopeNodes((nodes) => toggleTree(nodes, node.id))}
+          />
           <button type="button" onClick={onCancel}>
             Cancel
           </button>

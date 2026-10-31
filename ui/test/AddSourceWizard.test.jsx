@@ -74,6 +74,7 @@ describe("AddSourceWizard", () => {
     await screen.findByTestId("connect-success");
 
     const createSource = vi.spyOn(api, "createSource").mockResolvedValue({ id: "src-1" });
+    vi.spyOn(api, "discoverSource").mockReturnValue(new Promise(() => {}));
     fireEvent.click(screen.getByTestId("add-source-submit"));
 
     await waitFor(() =>

@@ -79,7 +79,7 @@ describe("SourcesScreen", () => {
     expect(screen.getByTestId("sources-table")).toBeInTheDocument();
   });
 
-  it("opens the add-source wizard and refreshes the list once a source is created", async () => {
+  it("opens the add-source wizard and refreshes the background list once a source is created", async () => {
     const listSources = vi.spyOn(api, "listSources").mockResolvedValue([]);
     render(<SourcesScreen onRunStarted={() => {}} />);
     await screen.findByTestId("sources-empty");
@@ -93,9 +93,12 @@ describe("SourcesScreen", () => {
     fireEvent.click(screen.getByTestId("test-connection-button"));
     await screen.findByTestId("connect-success");
     vi.spyOn(api, "createSource").mockResolvedValue(SOURCE);
+    vi.spyOn(api, "discoverSource").mockReturnValue(new Promise(() => {}));
     fireEvent.click(screen.getByTestId("add-source-submit"));
 
-    await screen.findByTestId("sources-table");
-    expect(listSources).toHaveBeenCalledTimes(2);
+    // The wizard stays open (it continues into the discover step) but the
+    // background sources list is refreshed so the new source is already there.
+    await waitFor(() => expect(listSources).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId("add-source-wizard")).toBeInTheDocument();
   });
 });

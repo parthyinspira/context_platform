@@ -44,7 +44,9 @@ export function SourcesScreen({ onRunStarted }) {
       <AddSourceWizard
         onCancel={() => setAddingSource(false)}
         onSourceCreated={() => {
-          setAddingSource(false);
+          // Keep the wizard open: it continues into the discover step. Refresh
+          // the background list so the new source already appears once the
+          // user eventually leaves the wizard.
           loadSources();
         }}
       />

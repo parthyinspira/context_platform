@@ -31,6 +31,16 @@ export async function testConnection(payload) {
   return response.json();
 }
 
+export async function discoverSource(sourceId) {
+  const response = await fetch(`${API_BASE_URL}/sources/${sourceId}/discover`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`POST /sources/${sourceId}/discover failed with ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function createSource(payload) {
   const response = await fetch(`${API_BASE_URL}/sources`, {
     method: "POST",
