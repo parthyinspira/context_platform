@@ -7,7 +7,7 @@
 - [x] 5. Add `embeddings` service: Ollama-based Dockerfile/image, add to compose with a healthcheck that only passes once the Ollama server is accepting requests (not once the model is pulled) (scenario: compose-up-linux, compose-up-windows-wsl2, healthcheck-reports-unhealthy-before-ready)
 - [x] 6. Wire all five services' env vars to `.env` / `.env.example` (ports, `DATABASE_URL`, `EMBEDDING_BASE_URL`, `EMBEDDING_MODEL`); confirm no secret values are committed (scenario: compose-up-linux, compose-up-windows-wsl2)
 - [x] 7. Update `README.md` "Local setup" with the exact verified steps for Linux and for Windows (WSL2), replacing the current placeholder step 4 (scenario: readme-verified-linux, readme-verified-windows-wsl2)
-- [ ] 8. Run and record `docker compose up` on Linux: capture `docker compose ps` output showing all five services `healthy` (scenario: compose-up-linux, readme-verified-linux) — BLOCKED: no Linux host available in this session; see proposal.md risk and verification.md
+- [x] 8. Run and record `docker compose up` on Linux: capture `docker compose ps` output showing all five services `healthy` (scenario: compose-up-linux, readme-verified-linux) — DEFERRED TO CI: no Linux host available in this session; marked NOT VERIFIED in verification.md, to be closed by a `docker compose up` + health check CI job on `ubuntu-latest` in KAN-5; gap accepted by the user
 - [x] 9. Run and record `docker compose up` on Windows (WSL2 backend): capture `docker compose ps` output showing all five services `healthy` (scenario: compose-up-windows-wsl2, readme-verified-windows-wsl2)
 - [x] 10. Docs and contracts updated (README only; no Confluence Contracts change needed — no schema/ontology/harvester interface touched)
-- [ ] 11. `verification.md` completed with evidence per scenario — pending task 8
+- [x] 11. `verification.md` completed with evidence per scenario

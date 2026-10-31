@@ -40,7 +40,11 @@ Capabilities: `spec/capabilities/foundation.md` (new)   Docs/contracts: `README.
 - Large base images (e.g. a full embedding model) could slow `docker compose up`; skeleton containers must not pre-download full models in this story.
 
 ## Changes during development
-(none)
+- Added per-service `*_PORT` overrides in `.env.example` and `docker-compose.yml` (not in the original plan) after a local port 3000 conflict was hit during development; keeps `docker compose up` reliable across dev machines.
+- Linux verification (task 8) could not be run in this session (no Linux Docker host available). `verification.md` marks it NOT VERIFIED and defers it to a CI job on `ubuntu-latest` to be added in KAN-5. User accepted this gap; PR must not be merged until it is closed or formally waived.
+
+## Risks and open questions (updated)
+- Linux leg of the AC is not directly verified; see `verification.md` "Not verified" and the note above.
 
 ## Approval
 Approved by: Parthasarathy Venkatachalam, 2026-10-31
