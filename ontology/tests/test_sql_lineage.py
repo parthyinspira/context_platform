@@ -59,6 +59,10 @@ def test_insert_select_yields_reads_from_and_writes_to():
     reads = _relations(result, "READS_FROM")
     assert any(dst == "schema.summary" for _src, dst in writes)
     assert any(dst == "schema.orders" for _src, dst in reads)
+    assert all(src != dst for src, dst in writes), "WRITES_TO must not be a self-loop"
+    assert {src for src, _dst in writes} == {src for src, _dst in reads}, (
+        "WRITES_TO and READS_FROM from the same statement should share the same src (the statement)"
+    )
     assert result.unparsed == []
 
 
@@ -87,6 +91,7 @@ def test_ctas_yields_reads_from_and_writes_to():
     reads = _relations(result, "READS_FROM")
     assert any(dst == "schema.report" for _src, dst in writes)
     assert any(dst == "schema.orders" for _src, dst in reads)
+    assert all(src != dst for src, dst in writes), "WRITES_TO must not be a self-loop"
 
 
 def test_merge_into_yields_reads_from_and_writes_to():

@@ -38,7 +38,7 @@ Capabilities: `spec/capabilities/sql-lineage-extraction.md` (new)   Docs/contrac
 - Dialect ambiguity (e.g. square-bracket identifiers vs backticks) may cause some real-world SQL to fail to parse; the spike documents this rather than trying to solve every dialect.
 
 ## Changes during development
-(none)
+- `story-reviewer` found a [blocking] bug at PR review: `WRITES_TO` edges were emitted as self-loops (`src_entity_id == dst_entity_id == write_external_id`) instead of `query -> table`, which is inconsistent with `READS_FROM`'s own `query -> table` convention and conveys no lineage fact. Fixed in `ontology/sql_lineage.py` (`WRITES_TO` now uses the same `"query"` proxy source as `READS_FROM`); added test assertions (`src != dst`, and that `WRITES_TO`/`READS_FROM` from one statement share the same `src`) so this cannot silently regress.
 
 ## Approval
 Approved by: auto (user started spec-auto), 2026-10-30; human review at PR

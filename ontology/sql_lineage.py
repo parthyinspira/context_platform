@@ -117,7 +117,8 @@ def _extract_one(
     write_external_id = _table_external_id(write_table) if write_table is not None else None
 
     source_tables = _collect_source_tables(statement, cte_names)
-    source_tables.pop(write_external_id, None) if write_external_id else None
+    if write_external_id:
+        source_tables.pop(write_external_id, None)
 
     def entity_for(table: exp.Table, external_id: str) -> Entity:
         if external_id not in entities:
@@ -131,11 +132,17 @@ def _extract_one(
             )
         return entities[external_id]
 
+    # "query" is a synthetic proxy for "this statement" on both sides: there is
+    # no real Job/Statement entity yet (no harvester supplies one), so it is
+    # never emitted as an Entity itself, only used as an edge endpoint. A future
+    # harvester should replace it with a real Job/Module entity id.
+    query_id = "query"
+
     if write_table is not None and write_external_id:
         entity_for(write_table, write_external_id)
         edges.append(
             Edge(
-                src_entity_id=write_external_id,
+                src_entity_id=query_id,
                 dst_entity_id=write_external_id,
                 relation="WRITES_TO",
                 source_id=source_id,
@@ -146,7 +153,7 @@ def _extract_one(
             entity_for(table, external_id)
             edges.append(
                 Edge(
-                    src_entity_id=write_external_id,
+                    src_entity_id=query_id,
                     dst_entity_id=external_id,
                     relation="READS_FROM",
                     source_id=source_id,
@@ -155,7 +162,6 @@ def _extract_one(
             )
     elif isinstance(statement, exp.Select) or statement.find(exp.Select):
         # Pure read (plain SELECT): no write target, only READS_FROM.
-        query_id = "query"
         for external_id, table in source_tables.items():
             entity_for(table, external_id)
             edges.append(
@@ -168,7 +174,6 @@ def _extract_one(
                 )
             )
 
-    # De-duplicate the accidental double WRITES_TO append above into a single edge.
     deduped: list[Edge] = []
     seen: set[tuple[str, str, str]] = set()
     for edge in edges:

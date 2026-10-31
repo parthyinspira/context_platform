@@ -6,9 +6,14 @@ parses SQL text statement-by-statement with `sqlglot` (default/generic dialect, 
 specific warehouse dialect selected) and emits:
 - `Entity(type="Table", ...)` for every table referenced, keyed by `external_id`
   (`schema.table`, or just `table` when unqualified).
-- `Edge(relation="READS_FROM", ...)` from the writing statement (or a synthetic
-  `"query"` node for a bare `SELECT`) to every table it reads.
-- `Edge(relation="WRITES_TO", ...)` from the writing statement to its target table.
+- `Edge(relation="READS_FROM", ...)` and `Edge(relation="WRITES_TO", ...)`, both
+  from a synthetic `"query"` proxy node representing "this statement" to the
+  tables it reads / its write target, respectively. `"query"` is never emitted
+  as an `Entity` itself; it is only used as an edge endpoint until a real
+  harvester supplies a Job/Module entity to use instead (story-reviewer caught
+  an earlier version of this code wiring `WRITES_TO` as a self-loop,
+  `table -> table`, instead of `query -> table`; fixed before merge, with a
+  regression test asserting `src_entity_id != dst_entity_id`).
 
 Covered statement shapes: `SELECT ... FROM ... JOIN`, `INSERT INTO ... SELECT`,
 `UPDATE ... FROM`, `CREATE TABLE ... AS SELECT` (CTAS), `MERGE INTO ... USING`,
