@@ -2,12 +2,37 @@
 
 ## MODIFIED Requirements
 ### Requirement: Standard checks
-The validator SHALL check completeness, exclusion integrity, budget compliance, parse success, expected yield, ontology conformance, referential integrity, delete sanity, secrets/PII and freshness. (was: requirement named all ten checks with only one scenario, for exclusion integrity; this change adds scenarios for completeness, budget compliance, parse success, ontology conformance, referential integrity and freshness — the seven checks in scope for KAN-83. Expected yield, delete sanity and secrets/PII remain unimplemented, covered by later stories.)
+The validator SHALL check completeness, exclusion integrity, budget compliance, parse success, expected yield, ontology conformance, referential integrity, delete sanity, secrets/PII and freshness. (was: requirement named all ten checks with scenarios for exclusion integrity, expected yield and secrets/PII only, implemented by KAN-84 concurrently with this change; this change adds scenarios for completeness, budget compliance, parse success, ontology conformance, referential integrity and freshness — the remaining six checks in scope for KAN-83, completing all ten. Note: `harvest_validation/validator.py` now has two aggregator entry points — KAN-84's `run_checks` for the three checks that need no manifest, composing the legacy `harvesters.base.ValidationReport`, and KAN-83's `validate` for these six manifest-driven checks plus exclusion integrity, composing the richer `harvest_validation.report.ValidationReport`; unifying them into one call is left to whichever story wires the validator into a concrete harvester.)
 
 #### Scenario: excluded type fetched
 - **Given** a manifest containing a file type the plan excluded
 - **When** validation runs
 - **Then** exclusion integrity fails
+
+#### Scenario: zero yield fails
+- **Given** a run whose detected stacks produced zero entities of any type
+- **When** the expected-yield check runs
+- **Then** the check fails with a zero-yield detail
+
+#### Scenario: stack missing expected entities fails
+- **Given** a run that detected a stack (for example SQL/dbt) but emitted no entities of that stack's expected type (Table)
+- **When** the expected-yield check runs
+- **Then** the check fails naming the stack with no matching entities
+
+#### Scenario: expected yield passes
+- **Given** a run whose detected stacks each produced at least one entity of an expected type
+- **When** the expected-yield check runs
+- **Then** the check passes
+
+#### Scenario: unredacted secret fails
+- **Given** stored text for a fetched object that still contains an unredacted secret pattern
+- **When** the secrets/PII check runs
+- **Then** the check fails naming the offending object
+
+#### Scenario: redacted content passes
+- **Given** stored text for every fetched object with no unredacted secret pattern remaining
+- **When** the secrets/PII check runs
+- **Then** the check passes
 
 #### Scenario: completeness ratio below fail threshold fails
 - **Given** a manifest where the fetched share of discovered objects is below the completeness fail threshold

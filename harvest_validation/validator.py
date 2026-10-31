@@ -1,28 +1,46 @@
-"""Harvester validator core checks (KAN-83).
+"""Harvester validator checks (KAN-83, KAN-84).
 
-Implements the seven checks in scope for this story from the table in
-`docs/HARVESTERS.md` section 5: completeness, exclusion integrity, budget
-compliance, parse success, ontology conformance, referential integrity and
-freshness. Expected yield, secrets/PII, delete sanity and spot check are out
-of scope (delete sanity and the publish/quarantine decision already exist in
-`harvest_validation/gate.py`, KAN-85).
+Implements all ten checks from `docs/HARVESTERS.md` section 5 and
+`spec/capabilities/harvest-validation.md` ("Standard checks" / "Delete
+sanity"), split across two stories that landed concurrently:
 
-Consumes the real `harvesters.framework.manifest.Manifest`, `harvesters.
-framework.plan.HarvestPlan`, and `harvesters.base.Entity`/`Edge` — no
-parallel types. Each `check_*` function returns one `CheckResult`; `validate`
-runs all seven and aggregates the worst status into one `ValidationReport`
-(see `harvest_validation/report.py`), whose `status` a `PublishQuarantineGate`
-can consume directly.
+- KAN-84 (`check_expected_yield`, `check_delete_sanity`,
+  `check_secrets_and_pii`, `run_checks`): checks that need no manifest-driven
+  harvester run, composed into a `harvesters.base.ValidationReport` (the
+  shape `Harvester.validate()` already returns).
+- KAN-83 (`check_completeness`, `check_exclusion_integrity`,
+  `check_budget_compliance`, `check_parse_success`,
+  `check_ontology_conformance`, `check_referential_integrity`,
+  `check_freshness`, `validate`): the seven checks that read a
+  `harvesters.framework.manifest.Manifest`, `harvesters.framework.plan.
+  HarvestPlan` and the `Entity`/`Edge` records `normalize()` emits, composed
+  into the richer `harvest_validation.report.ValidationReport` (status plus
+  per-check counts and sample failures, per the "Report" requirement).
+
+The two entry points (`run_checks`, `validate`) are not yet unified into one
+call because no orchestrator wires either into a real harvest run yet (both
+stories flag this as "Not verified" / out of scope); unifying them into a
+single `ValidationReport` shape and a single aggregator is left to whichever
+story wires the validator into a concrete `Harvester.validate()` override.
+Both report shapes carry PASS/WARN/FAIL values compatible with
+`harvest_validation.gate.PublishQuarantineGate`.
+
+The KAN-83 half consumes the real `Manifest`, `HarvestPlan`, and
+`harvesters.base.Entity`/`Edge` — no parallel types.
 """
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import PurePosixPath
 
 from adapters.ontology import ENTITY_TYPES, RELATION_TYPES
+from adapters.scanning import scan_and_redact
 from harvest_validation.gate import ValidationStatus
 from harvest_validation.report import CheckResult, ValidationReport, build_report
 from harvesters.base import Edge, Entity
+from harvesters.base import ValidationReport as HarvesterValidationReport
 from harvesters.framework.manifest import Manifest
 from harvesters.framework.plan import HarvestPlan
 
@@ -340,7 +358,7 @@ def validate(
     tokens_used: int | None = None,
     known_external_ids: Iterable[str] = (),
 ) -> ValidationReport:
-    """Run all seven checks and aggregate the worst status into one report."""
+    """Run the seven manifest-driven checks (KAN-83) and aggregate the worst status."""
     entities = tuple(entities)
     edges = tuple(edges)
 
@@ -357,3 +375,161 @@ def validate(
     )
 
     return build_report(results)
+
+
+# --- KAN-84: expected yield, delete sanity, secrets/PII --------------------
+# No manifest-driven harvester run is needed for these three; they compose
+# into the legacy `harvesters.base.ValidationReport` shape via `run_checks`.
+
+DEFAULT_DELETE_SPIKE_THRESHOLD = 0.2  # 20%, per the capability spec's delete-spike scenario
+
+# Stack -> ontology entity types that stack's detection is expected to yield at
+# least one of, per the "Pull" column in docs/HARVESTERS.md section 4 ("Git").
+# Stacks not listed here have no defined expectation and are skipped.
+STACK_EXPECTED_ENTITY_TYPES: Mapping[str, frozenset[str]] = {
+    "sql_dbt": frozenset({"Table"}),
+    "java": frozenset({"Module"}),
+    "dotnet": frozenset({"Module"}),
+    "talend": frozenset({"Job"}),
+    "shell": frozenset({"Module"}),
+    "docs": frozenset({"Document"}),
+}
+
+
+class CheckStatus(StrEnum):
+    PASS = "PASS"
+    WARN = "WARN"
+    FAIL = "FAIL"
+
+
+@dataclass(frozen=True)
+class _LegacyCheckResult:
+    """KAN-84's original per-check result shape (status, detail, counts).
+
+    Kept distinct from `harvest_validation.report.CheckResult` (name,
+    status, message, counts, samples) rather than migrated, so `run_checks`'
+    already-shipped behaviour and tests are unchanged by this merge.
+    """
+
+    status: CheckStatus
+    detail: str
+    counts: dict[str, int] = field(default_factory=dict)
+
+
+def check_expected_yield(
+    detected_stacks: Sequence[str], counts_by_type: Mapping[str, int]
+) -> _LegacyCheckResult:
+    """Zero total yield fails outright; a detected stack with no entities of
+    its expected type also fails, naming the stack."""
+    total_yield = sum(counts_by_type.values())
+    if total_yield == 0:
+        return _LegacyCheckResult(
+            status=CheckStatus.FAIL,
+            detail="zero entities emitted for a run with a non-empty scope",
+            counts=dict(counts_by_type),
+        )
+
+    missing_stacks = [
+        stack
+        for stack in detected_stacks
+        if stack in STACK_EXPECTED_ENTITY_TYPES
+        and not any(counts_by_type.get(t, 0) > 0 for t in STACK_EXPECTED_ENTITY_TYPES[stack])
+    ]
+    if missing_stacks:
+        return _LegacyCheckResult(
+            status=CheckStatus.FAIL,
+            detail=f"no expected entities for detected stack(s): {', '.join(missing_stacks)}",
+            counts=dict(counts_by_type),
+        )
+
+    return _LegacyCheckResult(
+        status=CheckStatus.PASS,
+        detail="expected entity types present for every detected stack",
+        counts=dict(counts_by_type),
+    )
+
+
+def check_delete_sanity(
+    tombstoned_count: int,
+    previously_published_count: int,
+    threshold: float = DEFAULT_DELETE_SPIKE_THRESHOLD,
+) -> _LegacyCheckResult:
+    """A tombstone share above `threshold` of what was previously published fails
+    (the gate quarantines a FAIL, per `PublishQuarantineGate`)."""
+    counts = {
+        "tombstoned": tombstoned_count,
+        "previously_published": previously_published_count,
+    }
+    if previously_published_count <= 0:
+        return _LegacyCheckResult(
+            status=CheckStatus.PASS,
+            detail="nothing previously published to compare against",
+            counts=counts,
+        )
+
+    share = tombstoned_count / previously_published_count
+    if share > threshold:
+        return _LegacyCheckResult(
+            status=CheckStatus.FAIL,
+            detail=(
+                f"delete spike: {share:.0%} of previously published objects would be "
+                f"tombstoned (threshold {threshold:.0%})"
+            ),
+            counts=counts,
+        )
+
+    return _LegacyCheckResult(
+        status=CheckStatus.PASS,
+        detail=f"tombstone share {share:.0%} within threshold {threshold:.0%}",
+        counts=counts,
+    )
+
+
+def check_secrets_and_pii(stored_texts: Mapping[str, str]) -> _LegacyCheckResult:
+    """Re-scans what was actually stored for each ref; fails naming any ref
+    where a secret pattern is still present, unredacted."""
+    offenders = sorted(
+        ref for ref, text in stored_texts.items() if scan_and_redact(text).has_secrets
+    )
+    if offenders:
+        return _LegacyCheckResult(
+            status=CheckStatus.FAIL,
+            detail=f"unredacted secrets found in stored content: {', '.join(offenders)}",
+            counts={"offending_objects": len(offenders)},
+        )
+
+    return _LegacyCheckResult(
+        status=CheckStatus.PASS,
+        detail="no unredacted secrets found in stored content",
+        counts={"offending_objects": 0},
+    )
+
+
+def run_checks(
+    *,
+    detected_stacks: Sequence[str],
+    counts_by_type: Mapping[str, int],
+    tombstoned_count: int,
+    previously_published_count: int,
+    stored_texts: Mapping[str, str],
+    delete_spike_threshold: float = DEFAULT_DELETE_SPIKE_THRESHOLD,
+) -> HarvesterValidationReport:
+    """Runs the three KAN-84 checks and composes a `harvesters.base.ValidationReport`.
+
+    `status` is FAIL if any check fails, else PASS (no check here returns WARN
+    yet; the seven KAN-83 checks, run separately via `validate()`, are what
+    can produce WARN).
+    """
+    results = {
+        "expected_yield": check_expected_yield(detected_stacks, counts_by_type),
+        "delete_sanity": check_delete_sanity(
+            tombstoned_count, previously_published_count, delete_spike_threshold
+        ),
+        "secrets_and_pii": check_secrets_and_pii(stored_texts),
+    }
+
+    checks = {name: result.status.value for name, result in results.items()}
+    errors = [result.detail for result in results.values() if result.status == CheckStatus.FAIL]
+    status = "FAIL" if errors else "PASS"
+
+    return HarvesterValidationReport(status=status, checks=checks, errors=errors)

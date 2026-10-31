@@ -1,14 +1,14 @@
 # Verification
 
 Status: PASS
-Date: 2026-10-31   Commit: 20e5d21 (working tree, pre-commit for this change)
+Date: 2026-10-31   Commit: c0a93ea plus a post-review merge of `origin/main` (KAN-84 reconciliation, see proposal.md "Changes during development")
 
 ## Checks
 | Check | Result |
 |---|---|
 | Lint (`ruff check harvesters harvest_validation --config pyproject.toml`) | PASS |
-| Tests (`python -m pytest harvest_validation harvesters -q`) | PASS — 123 passed |
-| Tests (full suite: `harvest_validation harvesters adapters ontology`) | PASS — 171 passed |
+| Tests (`python -m pytest harvest_validation harvesters -q`) | PASS — 138 passed (123 from this story + 15 from KAN-84, reconciled into one `validator.py`/`test_validator.py` after merging `main`) |
+| Tests (full suite: `harvest_validation harvesters adapters ontology`) | PASS — 186 passed |
 | `docker compose up` exercised | NOT VERIFIED — no new service/container; pure Python library code with no runtime or compose wiring. See "Not verified". |
 | contract-check skill | PASS — no schema/ontology/interface/adapter mismatches; see below |
 | secret-scan skill | PASS — no secrets found; only `.env.example` tracked |
@@ -52,3 +52,7 @@ Date: 2026-10-31   Commit: 20e5d21 (working tree, pre-commit for this change)
 - End-to-end run through a real `Harvester.harvest()`/`normalize()` → `validate()` path: no concrete harvester (e.g. Git) exists yet in this repo (later story in this epic). Verified at the unit level with hand-built `Manifest`/`Entity`/`Edge` fixtures matching the real types.
 - `docker compose up`: this change adds no new service, container, or compose wiring — it is pure Python library code under `harvest_validation/` and `harvesters/`, exercised by its test suite instead.
 - Wiring `validate()`'s output into `PublishQuarantineGate.evaluate()` end to end: both exist and the `status` types are compatible (`harvest_validation.gate.ValidationStatus`), but no orchestrator calls both in sequence yet (out of scope, no `harvest_runs` persistence/dispatcher exists).
+- Unifying `validate()` (this story) and `run_checks()` (KAN-84) into one call and one `ValidationReport` shape: both now live in the same `harvest_validation/validator.py` after reconciling a merge conflict with KAN-84 (see proposal.md), but remain two separate entry points since no orchestrator calls either yet; left to whichever story wires the validator into a concrete `Harvester.validate()` override.
+
+## Round 2 review fix (post-review)
+The first `story-reviewer` pass (round 1) found a `[blocking]` issue: this branch and KAN-84 (merged to `main` while this branch was open) both added `harvest_validation/validator.py` and `harvest_validation/tests/test_validator.py` from scratch with incompatible designs, which would conflict on merge and silently drop one story's checks. Fixed by merging `origin/main` into this branch and combining both files (see proposal.md "Changes during development"); all tests from both stories pass together (138 in the two touched packages). Also fixed two `[nit]` findings from the same review: `proposal.md`'s misattribution of delete sanity/secrets-PII to KAN-85 (corrected to KAN-84), and the spec delta's stale "was:" baseline (updated to include KAN-84's already-live scenarios so the MODIFIED requirement block stays complete for `spec-archive`).

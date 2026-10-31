@@ -20,8 +20,8 @@ Jira: https://inspiradataintegration.atlassian.net/browse/KAN-83   Epic: 10 Harv
 - Unit tests for each check and for aggregation (worst-of wins).
 
 ## Out of scope
-- Expected yield, secrets/PII, and spot-check checks (not in the Jira AC).
-- Delete sanity and the PASS/WARN/FAIL publish/quarantine gate (`harvest_validation/gate.py`) — already implemented (KAN-85); this story only produces a report whose `status` the gate can consume.
+- Expected yield, secrets/PII, and spot-check checks (not in the Jira AC); expected yield, delete sanity and secrets/PII were implemented concurrently by KAN-84 (merged to `main` while this branch was open — see "Changes during development").
+- The PASS/WARN/FAIL publish/quarantine gate (`harvest_validation/gate.py`) — already implemented (KAN-85); this story only produces a report whose `status` the gate can consume.
 - Wiring `validate()` into a concrete harvester's `Harvester.validate()` override, the dispatcher, or the UI report view — no concrete harvester exists yet (Git harvester is a later story in this epic).
 - Any change to the Postgres schema or migrations — `source_id`/`ontology_version`/`harvested_at` already exist as columns in `entities`/`edges` (`CLAUDE.md` schema v0); this only adds matching fields to the in-memory dataclasses that are normalize()'s output, before a write path exists.
 
@@ -45,7 +45,7 @@ Capabilities: `spec/capabilities/harvest-validation.md` (modified — adds scena
 - Budget compliance is checked after the fact from the manifest and optional elapsed-time/token counters (no live `BudgetTracker` wiring exists yet since no harvester runs); this only compares recorded usage to `HarvestPlan.budgets`.
 
 ## Changes during development
-(none)
+- KAN-84 ("validator checks for expected yield, delete sanity, secrets/PII") merged to `main` after this branch forked, independently creating `harvest_validation/validator.py` and `harvest_validation/tests/test_validator.py` with a different `CheckResult`/`CheckStatus` design composing the legacy `harvesters.base.ValidationReport`. The `story-reviewer` agent caught this as a blocking add/add conflict on the first review round. Fix: merged `origin/main` into this branch and combined both files into one `harvest_validation/validator.py` — KAN-84's three checks and `run_checks()` are unchanged in behavior (its local `CheckResult` dataclass was renamed to `_LegacyCheckResult`, an internal, unexported name, to avoid colliding with this story's `harvest_validation.report.CheckResult`; its `ValidationReport` import was aliased to `HarvesterValidationReport` for the same reason), and this story's seven checks and `validate()` are unchanged. The two entry points (`run_checks`, `validate`) are not unified into one call or one report shape in this change — no orchestrator calls either yet, so unifying them is deferred to whichever story wires the validator into a concrete `Harvester.validate()` override. The spec delta below was updated to include KAN-84's scenarios (already live on `spec/capabilities/harvest-validation.md`) so the "Standard checks" requirement's MODIFIED block stays complete for `spec-archive`.
 
 ## Approval
 Approved by: auto (user started spec-auto), 2026-10-31; human review at PR.

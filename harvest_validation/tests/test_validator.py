@@ -1,21 +1,34 @@
-"""Tests for the harvester validator core checks (KAN-83).
+"""Tests for the harvester validator checks (KAN-83, KAN-84).
 
-Scenarios map to spec/changes/kan-83-harvester-validator-core-checks/specs/harvest-validation.md.
+The KAN-83 tests (completeness, exclusion integrity, budget compliance, parse
+success, ontology conformance, referential integrity, freshness, `validate`)
+map to
+spec/changes/kan-83-harvester-validator-core-checks/specs/harvest-validation.md.
+The KAN-84 tests (expected yield, delete sanity, secrets/PII, `run_checks`)
+were already merged to `main` before this file existed on this branch; they
+are combined here because both stories added `harvest_validation/
+validator.py` independently.
 """
 from datetime import UTC, datetime
 
 from harvest_validation.gate import ValidationStatus
 from harvest_validation.validator import (
+    CheckStatus,
     check_budget_compliance,
     check_completeness,
+    check_delete_sanity,
     check_exclusion_integrity,
+    check_expected_yield,
     check_freshness,
     check_ontology_conformance,
     check_parse_success,
     check_referential_integrity,
+    check_secrets_and_pii,
+    run_checks,
     validate,
 )
 from harvesters.base import Edge, Entity
+from harvesters.base import ValidationReport as HarvesterValidationReport
 from harvesters.framework.manifest import Manifest
 from harvesters.framework.plan import Budgets, HarvestPlan
 
@@ -411,3 +424,161 @@ def test_validate_passes_for_a_clean_run():
     report = validate(plan, m, entities, edges, cursor_advanced=True)
 
     assert report.status == ValidationStatus.PASS
+
+
+# -- check_expected_yield -----------------------------------------------------
+
+
+def test_zero_yield_fails() -> None:
+    result = check_expected_yield(detected_stacks=["sql_dbt"], counts_by_type={})
+
+    assert result.status == CheckStatus.FAIL
+    assert "zero" in result.detail.lower()
+
+
+def test_stack_missing_expected_entities_fails() -> None:
+    result = check_expected_yield(
+        detected_stacks=["sql_dbt", "talend"],
+        counts_by_type={"Job": 3},
+    )
+
+    assert result.status == CheckStatus.FAIL
+    assert "sql_dbt" in result.detail
+    assert "talend" not in result.detail
+
+
+def test_expected_yield_passes() -> None:
+    result = check_expected_yield(
+        detected_stacks=["sql_dbt", "talend"],
+        counts_by_type={"Table": 5, "Job": 3},
+    )
+
+    assert result.status == CheckStatus.PASS
+
+
+def test_expected_yield_skips_unknown_stacks() -> None:
+    result = check_expected_yield(
+        detected_stacks=["sql_dbt", "mystery_stack"],
+        counts_by_type={"Table": 1},
+    )
+
+    assert result.status == CheckStatus.PASS
+
+
+# -- check_delete_sanity -------------------------------------------------------
+
+
+def test_delete_spike_fails() -> None:
+    result = check_delete_sanity(tombstoned_count=40, previously_published_count=100)
+
+    assert result.status == CheckStatus.FAIL
+    assert "delete" in result.detail.lower() or "tombstone" in result.detail.lower()
+
+
+def test_delete_below_threshold_passes() -> None:
+    result = check_delete_sanity(tombstoned_count=10, previously_published_count=100)
+
+    assert result.status == CheckStatus.PASS
+
+
+def test_delete_exactly_at_threshold_passes() -> None:
+    result = check_delete_sanity(tombstoned_count=20, previously_published_count=100, threshold=0.2)
+
+    assert result.status == CheckStatus.PASS
+
+
+def test_delete_sanity_passes_with_nothing_previously_published() -> None:
+    result = check_delete_sanity(tombstoned_count=5, previously_published_count=0)
+
+    assert result.status == CheckStatus.PASS
+
+
+def test_delete_sanity_custom_threshold() -> None:
+    result = check_delete_sanity(tombstoned_count=15, previously_published_count=100, threshold=0.1)
+
+    assert result.status == CheckStatus.FAIL
+
+
+# -- check_secrets_and_pii -----------------------------------------------------
+
+
+def test_unredacted_secret_fails() -> None:
+    result = check_secrets_and_pii(
+        {
+            "repo-a/config.yml": "api_key: abcdef0123456789",
+            "repo-a/readme.md": "nothing sensitive here",
+        }
+    )
+
+    assert result.status == CheckStatus.FAIL
+    assert "repo-a/config.yml" in result.detail
+    assert "repo-a/readme.md" not in result.detail
+
+
+def test_redacted_content_passes() -> None:
+    result = check_secrets_and_pii(
+        {
+            "repo-a/config.yml": "api_key: [REDACTED:generic_api_key]",
+            "repo-a/readme.md": "nothing sensitive here",
+        }
+    )
+
+    assert result.status == CheckStatus.PASS
+
+
+def test_secrets_check_passes_on_empty_input() -> None:
+    result = check_secrets_and_pii({})
+
+    assert result.status == CheckStatus.PASS
+
+
+# -- run_checks -----------------------------------------------------------------
+
+
+def test_run_checks_all_pass_yields_pass_report() -> None:
+    report = run_checks(
+        detected_stacks=["sql_dbt"],
+        counts_by_type={"Table": 2},
+        tombstoned_count=1,
+        previously_published_count=100,
+        stored_texts={"repo-a/models/x.sql": "select 1"},
+    )
+
+    assert isinstance(report, HarvesterValidationReport)
+    assert report.status == "PASS"
+    assert report.checks["expected_yield"] == "PASS"
+    assert report.checks["delete_sanity"] == "PASS"
+    assert report.checks["secrets_and_pii"] == "PASS"
+    assert report.errors == []
+
+
+def test_run_checks_any_fail_yields_fail_report_with_errors() -> None:
+    report = run_checks(
+        detected_stacks=["sql_dbt"],
+        counts_by_type={},
+        tombstoned_count=40,
+        previously_published_count=100,
+        stored_texts={"repo-a/config.yml": "password: hunter2345"},
+    )
+
+    assert report.status == "FAIL"
+    assert report.checks["expected_yield"] == "FAIL"
+    assert report.checks["delete_sanity"] == "FAIL"
+    assert report.checks["secrets_and_pii"] == "FAIL"
+    assert len(report.errors) == 3
+
+
+def test_run_checks_partial_fail_still_fails_overall() -> None:
+    report = run_checks(
+        detected_stacks=["sql_dbt"],
+        counts_by_type={"Table": 1},
+        tombstoned_count=40,
+        previously_published_count=100,
+        stored_texts={},
+    )
+
+    assert report.status == "FAIL"
+    assert report.checks["expected_yield"] == "PASS"
+    assert report.checks["delete_sanity"] == "FAIL"
+    assert report.checks["secrets_and_pii"] == "PASS"
+    assert len(report.errors) == 1
