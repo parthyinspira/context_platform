@@ -12,7 +12,10 @@ Every Jira story (`KAN-n`) is built by a **dev agent** and checked by a separate
 | 5 PR review | `spec-review` (agent `story-reviewer`) | verdict | `APPROVE`, then you merge |
 | After merge | `spec-archive` | specs updated, change archived | story Done |
 
-Supporting: `contract-check` (used in verify), `new-harvester` (planned, KAN-87). Mechanical guards as code appears: `scripts/spec_check.py` in CI, lint and tests, an import rule blocking cloud SDKs outside `adapters/`, migrations-only schema changes, secret scanning.
+Supporting skills:
+- Build helpers: `new-migration`, `new-adapter`, `new-mcp-tool`, `new-harvester`, `ui-screen`
+- Quality and safety: `contract-check`, `secret-scan`, `eval-run`, `harvest-dry-run`
+- Data and ops: `demo-data`, `triage-failed-run`, `confluence-sync`, `demo-check` Mechanical guards as code appears: `scripts/spec_check.py` in CI, lint and tests, an import rule blocking cloud SDKs outside `adapters/`, migrations-only schema changes, secret scanning.
 
 ## Steps
 1. **Pick** a story; read its acceptance criteria and the relevant docs (`CLAUDE.md`, `docs/HARVESTERS.md`, `docs/ARCHITECTURE.md`, Confluence Contracts).
