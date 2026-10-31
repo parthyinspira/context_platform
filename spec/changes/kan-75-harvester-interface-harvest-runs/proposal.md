@@ -6,10 +6,11 @@ Jira: https://inspiradataintegration.atlassian.net/browse/KAN-75   Epic: 10 Harv
 `docs/HARVESTERS.md` and `spec/capabilities/harvester-framework.md` already describe the full harvester lifecycle (connect/discover/profile/plan/harvest/normalize/validate) and the `harvest_runs` state machine, but neither exists in code yet: there is no `harvesters/` package, and the only run-tracking table is the deliberately provisional `dispatcher_runs` (added in KAN-106, which explicitly defers the full lifecycle table to this epic). This story delivers the shared interface and the `harvest_runs` table so later stories (concrete Git/SQL/upload harvesters) have a contract and a place to record run state, instead of each inventing its own.
 
 ## What changes
-- Add a `harvesters` package with an abstract `Harvester` base class exposing `connect`, `discover`, `profile`, `plan`, `harvest`, `normalize`, `validate`, matching the interface in `docs/HARVESTERS.md` section 2.
-- Add the supporting value types used in that interface's signatures (`ConnectionResult`, `ScopeTree`, `Profile`, `HarvestPlan`, `RawObject`, `Entity`, `Edge`, `Chunk`, `ValidationReport`) as plain dataclasses, cloud-neutral, no I/O.
-- Add a `HarvestRunState` enum with the eleven states from `docs/HARVESTERS.md` (`CONNECTING, DISCOVERING, PROFILING, PLANNED, APPROVED, HARVESTING, VALIDATING, PUBLISHED, QUARANTINED, FAILED, PARTIAL`).
+- Extend the existing `harvesters/base.py` `Harvester` ABC (added by KAN-12, which already anticipated this exact extension in its own docstring) in place, from its original `discover`/`fetch`/`normalize` methods to the full `connect`, `discover`, `profile`, `plan`, `harvest`, `normalize`, `validate` lifecycle from `docs/HARVESTERS.md` section 2. `discover` now returns a `ScopeTree` and `fetch` is replaced by the plan-driven, bulk `harvest`; no concrete harvester subclass existed yet, so this is a direct evolution of the one base class rather than a parallel contract.
+- Add the new supporting value types used in that interface's signatures (`ConnectionResult`, `ScopeNode`, `ScopeTree`, `Profile`, `ValidationReport`) as plain dataclasses in `harvesters/base.py`, alongside the pre-existing `ObjectRef`, `RawObject`, `Entity`, `Edge`, `Chunk`. `plan()` returns `harvesters.framework.HarvestPlan` (added by KAN-76, already merged) rather than a new duplicate plan type, so the plan/budget model stays in one place.
+- Add a `HarvestRunState` enum with the eleven states from `docs/HARVESTERS.md` (`CONNECTING, DISCOVERING, PROFILING, PLANNED, APPROVED, HARVESTING, VALIDATING, PUBLISHED, QUARANTINED, FAILED, PARTIAL`), in `harvesters/base.py`. Distinct from `harvesters.framework.budget.RunStatus` (`COMPLETED`/`PARTIAL`), which is an in-memory budget-tracking signal during one `harvest()` call, not the persisted run-row lifecycle.
 - Add migration `0004_harvest_runs` creating `harvest_runs(id, source_id, state, plan jsonb, manifest jsonb, error, started_at, updated_at)` with a `CHECK` constraint restricting `state` to the eleven values above.
+- Update `harvesters/tests/test_base.py`, `harvesters/tests/test_registry.py` and `harvesters/tests/fixtures.py` (all added by KAN-12) so their fixtures implement the full seven-method contract instead of the original three, and update the `spec/capabilities/harvester-framework.md` "Base class and plugin registry" requirement to describe the extended interface.
 
 ## In scope
 - The `Harvester` ABC and its supporting dataclasses (structural contract only; no concrete harvester implementation for any source type).
@@ -36,7 +37,7 @@ Capabilities: `spec/capabilities/harvester-framework.md` (Lifecycle requirement,
 - The `plan`/`manifest` columns on `harvest_runs` are typed `jsonb` with no fixed shape yet, since `HarvestPlan`/manifest formats are not finalized until a concrete harvester story defines them; this is consistent with `sources.config_json` being untyped jsonb too.
 
 ## Changes during development
-(none)
+While this story was in progress, KAN-12 (`harvesters/base.py`, `harvesters/registry.py`) and KAN-76 (`harvesters/framework/` with `HarvestPlan`/`Budgets`) merged to `main`. The first implementation of this story had drafted a standalone `harvesters/interface.py` with its own competing `Harvester` class and its own `HarvestPlan`. On reconciling with `main`, that file was dropped in favor of extending `harvesters/base.py` in place and reusing `harvesters.framework.HarvestPlan`/`Budgets`, per the human decision recorded in this change's PR discussion. No AC changed; only the module layout and reuse of already-merged types changed. See "What changes" above for the final shape.
 
 ## Approval
 Approved by: auto (user started spec-auto), 2026-10-31; human review at PR.

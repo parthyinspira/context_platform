@@ -4,7 +4,8 @@ Implements the full lifecycle in `docs/HARVESTERS.md` section 1-2 and the
 "Lifecycle" requirement in `spec/capabilities/harvester-framework.md`
 (KAN-75), extending the original 3-method contract in `CLAUDE.md`:
 
-    Connect -> Discover -> Profile -> Plan -> (approve) -> Harvest -> Validate -> Publish | Quarantine
+    Connect -> Discover -> Profile -> Plan -> (approve) -> Harvest
+    -> Validate -> Publish | Quarantine
 
 `plan()` returns `harvesters.framework.HarvestPlan` (KAN-76) rather than a
 new type, so the plan model and its budget enforcement stay in one place.

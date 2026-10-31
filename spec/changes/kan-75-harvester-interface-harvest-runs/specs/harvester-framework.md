@@ -10,7 +10,7 @@ A harvester SHALL implement connect, discover, profile, plan, harvest, normalize
 - **Then** states progress CONNECTING to PUBLISHED or QUARANTINED, each recorded
 
 #### Scenario: harvester-interface-has-all-stages
-- **Given** the `harvesters.interface.Harvester` abstract base class
+- **Given** the `harvesters.base.Harvester` abstract base class (extended in place by this story; see "Base class and plugin registry" requirement)
 - **When** its abstract methods are inspected
 - **Then** it declares `connect`, `discover`, `profile`, `plan`, `harvest`, `normalize` and `validate`
 
@@ -48,3 +48,16 @@ A harvester SHALL implement connect, discover, profile, plan, harvest, normalize
 - **Given** migration `0004_harvest_runs` already applied
 - **When** `scripts/migrate.py up` runs again
 - **Then** no error occurs and `schema_migrations` is unchanged
+
+### Requirement: Base class and plugin registry
+The project SHALL provide an abstract `Harvester` base class implementing the full lifecycle from `docs/HARVESTERS.md` section 2 — `connect`, `discover` (returning `ScopeTree`), `profile`, `plan` (returning the shared `harvesters.framework.HarvestPlan`), `harvest` (replacing `fetch`, plan-driven and bulk), `normalize` and `validate` — extending the original `discover`/`fetch`/`normalize` contract added by KAN-12. (was: base class implemented only `discover(source) -> Iterable[ObjectRef]`, `fetch(source, ref, cursor) -> RawObject` and `normalize(raw) -> list[Entity | Edge | Chunk]`)
+
+#### Scenario: base-class-contract
+- **Given** a subclass of `Harvester` that implements all seven lifecycle methods
+- **When** it is instantiated and its methods are called
+- **Then** it satisfies the `Harvester` interface and returns the documented types
+
+#### Scenario: cannot-instantiate-incomplete-subclass
+- **Given** a subclass of `Harvester` that omits one of the seven lifecycle methods
+- **When** it is instantiated
+- **Then** instantiation raises `TypeError` because the abstract method is not implemented

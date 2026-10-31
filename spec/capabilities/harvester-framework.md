@@ -82,15 +82,15 @@ Re-running a harvest SHALL NOT create duplicates and SHALL only process changes 
 - **Then** no entities are created or changed
 
 ### Requirement: Base class and plugin registry
-The project SHALL provide an abstract `Harvester` base class implementing the `discover(source) -> Iterable[ObjectRef]`, `fetch(source, ref, cursor) -> RawObject` and `normalize(raw) -> list[Entity | Edge | Chunk]` interface from `CLAUDE.md`, and a plugin registry SHALL select the concrete `Harvester` implementation for a source by its `source.type`.
+The project SHALL provide an abstract `Harvester` base class implementing the full lifecycle from `docs/HARVESTERS.md` section 2 — `connect(source) -> ConnectionResult`, `discover(source) -> ScopeTree`, `profile(source, scope) -> Profile`, `plan(profile) -> HarvestPlan` (the shared `HarvestPlan` model, not a per-harvester type), `harvest(source, plan, cursor) -> Iterable[RawObject]`, `normalize(raw) -> list[Entity | Edge | Chunk]` and `validate(plan, manifest) -> ValidationReport` — extending the original `discover`/`fetch`/`normalize` contract in `CLAUDE.md` (KAN-75). A plugin registry SHALL select the concrete `Harvester` implementation for a source by its `source.type`.
 
 #### Scenario: base-class-contract
-- **Given** a subclass of `Harvester` that implements `discover`, `fetch` and `normalize`
+- **Given** a subclass of `Harvester` that implements all seven lifecycle methods
 - **When** it is instantiated and its methods are called
 - **Then** it satisfies the `Harvester` interface and returns the documented types
 
 #### Scenario: cannot-instantiate-incomplete-subclass
-- **Given** a subclass of `Harvester` that omits one of `discover`, `fetch` or `normalize`
+- **Given** a subclass of `Harvester` that omits one of the seven lifecycle methods
 - **When** it is instantiated
 - **Then** instantiation raises `TypeError` because the abstract method is not implemented
 

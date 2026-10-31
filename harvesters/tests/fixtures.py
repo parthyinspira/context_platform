@@ -14,7 +14,6 @@ from harvesters.base import (
     Edge,
     Entity,
     Harvester,
-    ObjectRef,
     Profile,
     RawObject,
     ScopeNode,
@@ -46,11 +45,11 @@ class FixtureHarvester(Harvester):
     def harvest(
         self, source: dict, plan: HarvestPlan, cursor: str | None
     ) -> Iterable[RawObject]:
-        for ref in ScopeTree(
-            roots=[ScopeNode(id="obj-1", kind="file", name="obj-1.txt", size_hint=10)]
-        ).refs():
+        for ref in self.discover(source).refs():
             if plan.is_included(ref.path):
-                yield RawObject(external_id=ref.external_id, content=b"hello", content_type="text/plain")
+                yield RawObject(
+                    external_id=ref.external_id, content=b"hello", content_type="text/plain"
+                )
 
     def normalize(self, raw: RawObject) -> list[Entity | Edge | Chunk]:
         return [
