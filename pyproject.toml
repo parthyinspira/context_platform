@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-include = ["api/**/*.py", "scheduler/**/*.py", "adapters/**/*.py", "document_parsing/**/*.py"]
+include = ["api/**/*.py", "scheduler/**/*.py", "adapters/**/*.py", "ontology/**/*.py", "document_parsing/**/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
