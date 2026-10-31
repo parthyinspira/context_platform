@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from adapters.event_bus.base import EventBus
 from adapters.factory import get_event_bus, get_secret_store
@@ -10,6 +11,16 @@ from app.due import is_due
 from app.schemas import DueSourceOut, RunOut
 
 app = FastAPI(title="context-platform-scheduler")
+
+# Single-tenant hackathon stack: the `ui` container is served from a different
+# origin/port than this service, with no gateway in front of either. Permissive CORS
+# lets the browser call this service directly; revisit if a shared gateway is added.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def connection_factory_dependency() -> Any:
