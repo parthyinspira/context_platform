@@ -9,4 +9,4 @@
 - [x] 7. Run migration test: empty -> apply -> re-apply (no-op) -> rollback -> verify tables gone (scenario: fresh database, idempotent re-run, rollback)
 - [x] 8. Verify Confluence Contracts page (section 4.4 of Project Home) matches the migrated schema (scenario: Confluence updated) — already matches column-for-column; no edit needed
 - [x] 9. Docs and contracts reviewed for accuracy (CLAUDE.md "Postgres schema v0" already matches the migration; spec/capabilities/postgres-schema.md is applied from the delta at spec-archive, per spec/README.md)
-- [ ] 10. verification.md completed
+- [x] 10. verification.md completed
