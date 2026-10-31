@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from adapters.event_bus.base import EventBus
 from adapters.factory import get_event_bus, get_secret_store
 from app.db import get_connection_factory
-from app.schemas import SourceCreate, SourceOut
+from app.schemas import SourceCreate, SourceOut, SourceUpdate
 
 app = FastAPI(title="context-platform-api")
 
@@ -77,8 +77,12 @@ def create_source(
     finally:
         conn.close()
 
+    return _source_out_from_row(row)
+
+
+def _source_out_from_row(row: tuple) -> SourceOut:
     return SourceOut(
-        id=source_id,
+        id=str(row[0]),
         type=row[1],
         uri=row[2],
         schedule=row[3],
@@ -87,3 +91,71 @@ def create_source(
         sensitivity=row[6],
         status=row[7],
     )
+
+
+_SOURCE_COLUMNS = "id, type, uri, schedule, credentials_ref, owner, sensitivity, status"
+
+
+@app.get("/sources", response_model=list[SourceOut])
+def list_sources(
+    connection_factory: Any = Depends(connection_factory_dependency),
+) -> list[SourceOut]:
+    conn = connection_factory()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT {_SOURCE_COLUMNS} FROM sources ORDER BY id")
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+    return [_source_out_from_row(row) for row in rows]
+
+
+@app.patch("/sources/{source_id}", response_model=SourceOut)
+def update_source(
+    source_id: str,
+    update: SourceUpdate,
+    connection_factory: Any = Depends(connection_factory_dependency),
+) -> SourceOut:
+    conn = connection_factory()
+    try:
+        cur = conn.cursor()
+        cur.execute(f"SELECT {_SOURCE_COLUMNS} FROM sources WHERE id = %s", (source_id,))
+        current = cur.fetchone()
+        if current is None:
+            raise HTTPException(status_code=404, detail="source not found")
+
+        new_schedule = update.schedule if update.schedule is not None else current[3]
+        new_status = update.status if update.status is not None else current[7]
+
+        cur.execute(
+            "UPDATE sources SET schedule = %s, status = %s WHERE id = %s "
+            f"RETURNING {_SOURCE_COLUMNS}",
+            (new_schedule, new_status, source_id),
+        )
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+    return _source_out_from_row(row)
+
+
+@app.delete("/sources/{source_id}", response_model=SourceOut)
+def delete_source(
+    source_id: str,
+    connection_factory: Any = Depends(connection_factory_dependency),
+) -> SourceOut:
+    """Soft delete: sets `status=disabled` without removing the row."""
+    conn = connection_factory()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE sources SET status = 'disabled' WHERE id = %s RETURNING {_SOURCE_COLUMNS}",
+            (source_id,),
+        )
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="source not found")
+    return _source_out_from_row(row)
