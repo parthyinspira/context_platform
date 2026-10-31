@@ -2,16 +2,17 @@
 
 Every Jira story (`KAN-n`) is built by a **dev agent** and checked by a separate **review agent** before a human merges. The reviewer has no memory of the build session, so it checks the work against the story, not against the developer's reasoning.
 
-## Skills that keep development on track
-| Skill | When | What it does |
-|---|---|---|
-| `start-story` | start of every story | loads the story and docs, checks scope, creates the branch, agrees a plan before code |
-| `contract-check` | before every PR | checks code, schema, ontology, interface, adapters, secrets and docs agree |
-| `finish-story` | end of every story | runs tests, contract check, Definition of Done, opens the PR, runs the reviewer |
-| `story-reviewer` (agent) | after the PR | independent review against the acceptance criteria |
-| `new-harvester` (planned, KAN-87) | each new source system | scaffolds a harvester pack from the contract |
+## Spec-driven stages (see `spec/README.md`)
+| Stage | Skill | Output | Gate |
+|---|---|---|---|
+| 1 Plan | `spec-plan` | proposal, spec deltas, tasks | you approve |
+| 2 Develop | `spec-develop` | tested code, ticked tasks | all tasks done |
+| 3 Verify | `spec-verify` | `verification.md` | Status PASS |
+| 4 PR | `spec-pr` | pull request | CI green |
+| 5 PR review | `spec-review` (agent `story-reviewer`) | verdict | `APPROVE`, then you merge |
+| After merge | `spec-archive` | specs updated, change archived | story Done |
 
-Also enforced mechanically as the code appears: CI lint and tests, an import rule blocking cloud SDKs outside `adapters/`, migrations-only schema changes, secret scanning.
+Supporting: `contract-check` (used in verify), `new-harvester` (planned, KAN-87). Mechanical guards as code appears: `scripts/spec_check.py` in CI, lint and tests, an import rule blocking cloud SDKs outside `adapters/`, migrations-only schema changes, secret scanning.
 
 ## Steps
 1. **Pick** a story; read its acceptance criteria and the relevant docs (`CLAUDE.md`, `docs/HARVESTERS.md`, `docs/ARCHITECTURE.md`, Confluence Contracts).

@@ -20,6 +20,7 @@ Flow: source registered -> harvester (discover/fetch/normalize) -> `harvest.comp
 ## Scope and design docs
 - `docs/HACKATHON_SCOPE.md`: what is in and out for the hackathon (UI with knowledge graph, harvesters, validator, dispatcher).
 - `docs/HARVESTERS.md`: harvester lifecycle, scoping rules per source, validator, skills and rules. Read before touching any harvester.
+- `spec/`: capability specs, active changes, workflow stage specs and templates.
 - `docs/ARCHITECTURE.md`: topology, data hierarchy, MCP design, portability.
 - Harvesters must follow the budgets and metadata-first rules in `docs/HARVESTERS.md`; a run that fails validation is quarantined, never published.
 
@@ -60,14 +61,16 @@ class Harvester:
 - Tests for every harvester (fixture repos/docs) and for idempotent re-harvest.
 - Retrieval results always include source link, `harvested_at` and `sensitivity`.
 
-## Workflow
-Development tooling: stories are picked up from Jira (via Kepler or the Atlassian MCP) and built with Claude Code in VS Code; every story gets a `story-reviewer` agent pass before merge (see `docs/DEV_WORKFLOW.md` and `docs/UI_DESIGN.md`, `docs/DEMO_AGENTS.md`).
-
-1. Work one Jira story (`KAN-n`) per branch and PR; branch name `kan-<n>-short-slug`.
-2. Read the story's acceptance criteria and the Confluence Contracts page first.
-3. Implement with tests; run lint and tests before opening the PR.
-4. Reference the story key in the PR title; update Confluence if a contract changed.
-5. After merge, move the story to Done and add a one-line comment with the PR link.
+## Workflow (spec-driven; see `spec/README.md` and `spec/workflow/`)
+Development tooling: stories are picked up from Jira (via Kepler or the Atlassian MCP) and built with Claude Code in VS Code.
+1. One Jira story (`KAN-n`) = one change folder `spec/changes/kan-<n>-<slug>/` and one branch/PR.
+2. Plan (`spec-plan`): proposal, spec deltas, tasks; the user approves before any code.
+3. Develop (`spec-develop`): test-first, stay inside the proposal's scope.
+4. Verify (`spec-verify`): `verification.md` with evidence per scenario; Status PASS before a PR.
+5. PR (`spec-pr`): title starts with the story key; template filled; CI green.
+6. Review (`spec-review`): `story-reviewer` agent in a fresh context; the user merges only on `APPROVE`.
+7. After merge (`spec-archive`): deltas applied to `spec/capabilities/`, change archived, Jira story Done.
+Specs in `spec/capabilities/` are the source of truth for behaviour; update Confluence if a contract changed.
 
 ## Build order
 Epic 1 Foundation (compose stack, Postgres+pgvector, adapters, CI) -> 2 Source registry/API -> 3 Git harvester -> 4 Scheduler/incremental -> 5 Ontology updater -> 6 Retrieval MCP -> 7 Upload harvester -> 8 Demo, evals, docs. Get a thin end-to-end demo working by the halfway point, even if rough.
