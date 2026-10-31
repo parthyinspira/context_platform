@@ -3,7 +3,7 @@ name: spec-batch
 description: Build a whole milestone (a set of Jira stories) with one combined plan approval, then develop, verify and PR them in order. Use when the user wants to build many stories quickly (for example "build M1").
 ---
 
-Follow `spec/workflow/06-batch.md` and `docs/MILESTONES.md`. Input: a milestone (M1 to M4) or a list of KAN keys.
+Follow `spec/workflow/06-batch.md` and `docs/MILESTONES.md`. Input: a bundle name from `docs/MILESTONES.md` (B0 to B12) or an explicit list of KAN keys. If both are given, use the explicit list.
 
 1. `git pull origin main`; create branch `m<n>-<slug>` from latest `main`. Check prerequisites listed for the milestone (Docker running, `.env` present, Python available); if missing, stop and say what to do.
 2. Plan all stories without stopping: for each KAN key read the story (never guess acceptance criteria), then create `spec/changes/kan-<n>-<slug>/` with proposal, spec delta and tasks (follow `spec-plan`). Order stories by dependency.

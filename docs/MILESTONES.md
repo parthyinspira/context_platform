@@ -2,11 +2,12 @@
 
 Deadline: 3 days. The demo shows one thing end to end: add a Git repo in the UI, approve the harvest plan, harvest and validate it, see the knowledge graph, and have one agent answer a lineage question with citations. Everything else is stretch.
 
-## Demo-critical bundles (about 48 stories, 12 runs)
+## Demo-critical bundles (about 48 stories, 13 runs including B0)
 Each bundle is one `spec-batch` run (one plan approval, one PR). "Minimal" means the simplest version that satisfies the acceptance criteria.
 
 | Bundle | Stories (KAN) | Notes |
 |---|---|---|
+| B0 Fixtures | 88 | Start Day 1; B5, B6, B7 tests need the sample repos. Files only under `fixtures/` |
 | B1 Foundation | 4, 102, 5 | KAN-101 done. KAN-5 includes the Ubuntu CI job that runs `docker compose up` |
 | B2 Sources API | 7, 8, 9, 10, 106 | API plus event plus run endpoint |
 | B3 UI shell | 57, 59, 60 | Parallel with B2 |
@@ -17,7 +18,7 @@ Each bundle is one `spec-batch` run (one plan approval, one PR). "Minimal" means
 | B8 UI wizard and runs | 58, 61, 62, 63, 64, 65 | Minimal wizard, run view and report |
 | B9 Graph UI | 66, 68 | Canvas plus inspector (filters 67 are stretch) |
 | B10 Retrieval MCP | 31, 32, 33, 48 | Context service, `search_context`, `get_related`, `get_lineage` |
-| B11 Agent | 88, 98, 93, 94 | Fixtures, seeded demo data, grounding module, one agent: workflow change-impact (shows lineage) |
+| B11 Agent | 98, 93, 94 | Fixtures, seeded demo data, grounding module, one agent: workflow change-impact (shows lineage) |
 | B12 Demo | 100, 43 | Demo script and rehearsal |
 
 ## Schedule
