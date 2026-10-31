@@ -18,14 +18,15 @@ Verified on both platforms for KAN-101 (compose stack: Postgres+pgvector, api, u
    - Windows: `git config --global core.longpaths true`
 3. `cp .env.example .env`. The defaults work for `docker compose up` as-is (sample Postgres credentials, local adapters); fill in the LLM endpoint and key only when you need LLM-backed features. Never commit `.env`.
    - If a host port in `.env.example` (5432, 8000, 8001, 3000, 11434) is already in use on your machine, change the matching `*_PORT` variable in `.env` before starting.
-4. `docker compose up` starts five services: `postgres` (Postgres 16 + pgvector), `api`, `scheduler`, `ui`, `embeddings` (Ollama).
-5. Check status: `docker compose ps` should show all five services as `healthy` within about a minute (the `embeddings` service takes longest on first start).
+4. `docker compose up` starts six services: `postgres` (Postgres 16 + pgvector), `migrate` (applies the Postgres schema v0 migrations, then exits), `api`, `scheduler`, `ui`, `embeddings` (Ollama).
+5. Check status: `docker compose ps` should show `migrate` as `exited (0)` and the other services `healthy` within about a minute (the `embeddings` service takes longest on first start).
 6. Verify each service:
    - `curl http://localhost:8000/health` -> `{"status":"ok"}` (api)
    - `curl http://localhost:8001/health` -> `{"status":"ok"}` (scheduler)
    - `curl http://localhost:3000/health` -> `{"status":"ok"}` (ui)
-   - `docker compose exec postgres psql -U context -d context -c "\dx"` -> lists the `vector` extension
-7. `docker compose down -v` stops the stack and removes its volumes when you are done.
+   - `docker compose exec postgres psql -U context -d context -c "\dt"` -> lists `sources`, `entities`, `edges`, `chunks`, `proposed_changes`, `schema_migrations`
+7. To re-run migrations by hand (e.g. after adding a new one): `docker compose run --rm migrate up`. To roll back the latest schema: `docker compose run --rm migrate down`.
+8. `docker compose down -v` stops the stack and removes its volumes when you are done.
 
 ## Working on a story
 1. Pick a Jira story in project `KAN`; branch `kan-<n>-short-slug`.

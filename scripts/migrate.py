@@ -13,7 +13,15 @@ from pathlib import Path
 
 import psycopg
 
-MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
+def _migrations_dir() -> Path:
+    script_dir = Path(__file__).resolve().parent
+    for candidate in (script_dir / "migrations", script_dir.parent / "migrations"):
+        if candidate.is_dir():
+            return candidate
+    raise FileNotFoundError(f"no migrations directory found next to or above {script_dir}")
+
+
+MIGRATIONS_DIR = _migrations_dir()
 
 
 def _migration_versions() -> list[str]:
