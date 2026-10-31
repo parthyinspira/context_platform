@@ -116,22 +116,38 @@ class RawObject:
 
 @dataclass(frozen=True)
 class Entity:
-    """Matches the `entities` table shape from the Postgres schema v0."""
+    """Matches the `entities` table shape from the Postgres schema v0.
+
+    `source_id`, `harvested_at` and `ontology_version` are optional (default
+    `None`) so existing call sites that predate the validator (KAN-83) keep
+    working; the validator's ontology-conformance check treats a missing
+    value as a conformance failure once a harvester actually sets these.
+    """
 
     type: str
     name: str
     external_id: str
     props: dict[str, Any] = field(default_factory=dict)
+    source_id: str | None = None
+    harvested_at: datetime | None = None
+    ontology_version: str | None = None
 
 
 @dataclass(frozen=True)
 class Edge:
-    """Matches the `edges` table shape from the Postgres schema v0."""
+    """Matches the `edges` table shape from the Postgres schema v0.
+
+    See `Entity` above for why `source_id`, `harvested_at` and
+    `ontology_version` are optional.
+    """
 
     src_external_id: str
     dst_external_id: str
     relation: str
     confidence: float = 1.0
+    source_id: str | None = None
+    harvested_at: datetime | None = None
+    ontology_version: str | None = None
 
 
 @dataclass(frozen=True)
