@@ -7,4 +7,4 @@
 - [x] 5. Implement `by_outcome`, `counts`, `unaccounted`, JSON round trip and `ManifestStore` over `ObjectStore`
 - [x] 6. Lint and full Python test suites pass
 - [x] 7. Docs and contracts reviewed (no schema, ontology or interface signature change; capability delta applied at archive)
-- [ ] 8. `contract-check` and `secret-scan` run; verification.md completed
+- [x] 8. `contract-check` and `secret-scan` run; verification.md completed
