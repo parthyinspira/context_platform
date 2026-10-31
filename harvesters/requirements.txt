@@ -1,0 +1,1 @@
+# harvesters framework: standard library only; imports adapters/ (scanning, object_store) from the repo root
