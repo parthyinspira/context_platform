@@ -32,6 +32,9 @@ def test_no_cloud_sdk_imports_outside_adapters() -> None:
             continue
         for py_file in root.rglob("*.py"):
             for imported in _imports_in(py_file):
-                if any(imported == sdk or imported.startswith(sdk + ".") for sdk in CLOUD_SDK_MODULES):
+                is_cloud_sdk = any(
+                    imported == sdk or imported.startswith(sdk + ".") for sdk in CLOUD_SDK_MODULES
+                )
+                if is_cloud_sdk:
                     violations.append(f"{py_file}: {imported}")
     assert violations == [], f"cloud SDK imports found outside adapters/: {violations}"

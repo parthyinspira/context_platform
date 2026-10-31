@@ -16,7 +16,12 @@ class HTTPLLMProvider(LLMProvider):
     passes an `httpx`-backed transport, kept inside this adapter module only.
     """
 
-    def __init__(self, secret_store: SecretStore, transport: HTTPTransport, model_key: str = "LLM_MODEL_LARGE"):
+    def __init__(
+        self,
+        secret_store: SecretStore,
+        transport: HTTPTransport,
+        model_key: str = "LLM_MODEL_LARGE",
+    ):
         self._secrets = secret_store
         self._transport = transport
         self._model_key = model_key

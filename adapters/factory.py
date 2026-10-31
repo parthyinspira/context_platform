@@ -28,7 +28,9 @@ def get_object_store(secrets: SecretStore, object_store: str | None = None) -> O
     raise ValueError(f"unknown OBJECT_STORE: {kind}")
 
 
-def get_event_bus(connection_factory: Any, secrets: SecretStore, event_bus: str | None = None) -> EventBus:
+def get_event_bus(
+    connection_factory: Any, secrets: SecretStore, event_bus: str | None = None
+) -> EventBus:
     kind = event_bus or secrets.get("EVENT_BUS") or "postgres_outbox"
     if kind == "postgres_outbox":
         return PostgresOutboxEventBus(connection_factory)
