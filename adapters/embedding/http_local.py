@@ -22,5 +22,6 @@ class HTTPEmbeddingProvider(EmbeddingProvider):
     def embed(self, texts: list[str]) -> tuple[list[list[float]], str]:
         base_url = self._secrets.get("EMBEDDING_BASE_URL")
         model = self._secrets.get("EMBEDDING_MODEL")
-        response = self._transport.post(f"{base_url}/api/embed", json={"model": model, "input": texts})
+        payload = {"model": model, "input": texts}
+        response = self._transport.post(f"{base_url}/api/embed", json=payload)
         return response["embeddings"], model

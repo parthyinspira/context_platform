@@ -42,7 +42,11 @@ class PostgresOutboxEventBus(EventBus):
         )
         rows = cur.fetchall()
         events = [
-            Event(id=str(row[0]), topic=row[1], payload=row[2] if isinstance(row[2], dict) else json.loads(row[2]))
+            Event(
+                id=str(row[0]),
+                topic=row[1],
+                payload=row[2] if isinstance(row[2], dict) else json.loads(row[2]),
+            )
             for row in rows
         ]
         if events:

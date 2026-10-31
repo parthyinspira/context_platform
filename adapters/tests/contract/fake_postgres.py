@@ -5,7 +5,6 @@ plain SQL against the `outbox_events` table from migration 0002 and is otherwise
 untested against a live Postgres server (noted in verification.md).
 """
 import json
-import uuid
 from dataclasses import dataclass, field
 
 
@@ -41,7 +40,12 @@ class FakePostgresCursor:
             row_id, topic, payload_json = params
             self._conn._seq += 1
             self._conn.rows.append(
-                _Row(id=row_id, topic=topic, payload=json.loads(payload_json), created_at=self._conn._seq)
+                _Row(
+                    id=row_id,
+                    topic=topic,
+                    payload=json.loads(payload_json),
+                    created_at=self._conn._seq,
+                )
             )
         elif sql_norm.startswith("SELECT id, topic, payload FROM outbox_events"):
             topic, limit = params

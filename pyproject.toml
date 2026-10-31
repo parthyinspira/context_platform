@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+include = ["api/**/*.py", "scheduler/**/*.py", "adapters/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
