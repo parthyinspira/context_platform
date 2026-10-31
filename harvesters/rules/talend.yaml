@@ -1,0 +1,15 @@
+# Talend stack rules (docs/HARVESTERS.md section 4, KAN-79).
+# Pull: job .item XML (components, connections, context), .properties metadata.
+# Skip: *.screenshot, *.jar, generated code, libs, binaries.
+stack: talend
+include:
+  - "*.item"
+  - "*.properties"
+exclude:
+  - "*.screenshot"
+  - "*.jar"
+  - "screenshots/*"
+  - "*/screenshots/*"
+  - "lib/*"
+  - "*/lib/*"
+size_cap_bytes: 1048576
