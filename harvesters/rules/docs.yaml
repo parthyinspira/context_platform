@@ -1,0 +1,15 @@
+# Docs (any repo) stack rules (docs/HARVESTERS.md section 4, KAN-79).
+# Pull: text under the size cap. Skip: images, generated docs.
+stack: docs
+include:
+  - "README*"
+  - "docs/**"
+  - "docs/**/*"
+  - "*.md"
+exclude:
+  - "*.png"
+  - "*.jpg"
+  - "*.jpeg"
+  - "*.gif"
+  - "*.svg"
+size_cap_bytes: 1048576

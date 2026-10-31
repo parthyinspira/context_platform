@@ -1,0 +1,11 @@
+# Shell/scripts stack rules (docs/HARVESTERS.md section 4, KAN-79).
+# Pull: scripts under the size cap. Skip: logs, outputs.
+stack: shell
+include:
+  - "*.sh"
+  - "*.ps1"
+  - "*.bat"
+exclude:
+  - "*.log"
+  - "*.out"
+size_cap_bytes: 1048576

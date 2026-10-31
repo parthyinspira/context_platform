@@ -1,1 +1,2 @@
-# harvesters framework: standard library only; imports adapters/ (scanning, object_store) from the repo root
+# harvesters framework: standard library only beyond pyyaml; imports adapters/ (scanning, object_store) from the repo root
+pyyaml==6.0.2
