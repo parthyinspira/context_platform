@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [api, scheduler, adapters, ontology]
+        package: [api, scheduler, adapters, ontology, harvest_validation]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
