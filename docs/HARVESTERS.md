@@ -126,3 +126,32 @@ Output: a `ValidationReport` with status `PASS | WARN | FAIL`, check results, co
 - Plan test: expected include/exclude decisions on the fixture.
 - Re-run test: idempotent, no duplicates; incremental run only touches changes.
 - Validator test: deliberately broken fixtures (missing files, oversize file, secret in file, delete spike) produce the right `WARN` / `FAIL`.
+
+## 8. Running a harvest (one-off container job)
+
+`harvesters/run.py` (image entrypoint `python -m harvesters.run`) drives one registered
+`Harvester` end to end for an already-planned run: `connect -> discover -> harvest ->
+normalize -> validate`, writing each state transition to `harvest_runs`, deciding
+publish-vs-quarantine with `harvest_validation.PublishQuarantineGate`, and publishing
+`harvest.completed` on the `EventBus`.
+
+Configuration is environment-variable only, so the same image runs unmodified as:
+- a local one-off container: `docker compose run --rm -e SOURCE_ID=<id> -e PLAN_ID=<id> harvester`
+- a GCP Cloud Run Job (per-execution env vars set on the job/execution)
+- an Azure Container Apps Job (per-execution env vars on the job trigger)
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `SOURCE_ID` | yes | the `sources.id` to harvest (CLI override: `--source-id`) |
+| `PLAN_ID` | yes | the `harvest_runs.id` of an already `PLANNED`/`APPROVED` row — its `plan` JSONB column holds the `HarvestPlan` (CLI override: `--plan-id`); no separate `plans` table exists |
+| `DATABASE_URL` | yes | Postgres connection string, same as `api`/`scheduler` |
+| `SECRET_STORE`, `EVENT_BUS` | no | adapter selection, same keys as `adapters/factory.py` |
+
+Exit codes: `0` when the run reached `PUBLISHED` or `QUARANTINED` (the lifecycle completed
+and the gate made a decision), `1` when it ended `FAILED` (connect error or unhandled
+exception), `2` when it could not start (missing `SOURCE_ID`/`PLAN_ID`/`DATABASE_URL`, or
+an unknown `PLAN_ID`) — nothing is written to `harvest_runs` in the `2` case.
+
+Persisting the `Entity`/`Edge`/`Chunk` records `normalize()` produces to Postgres is the
+job of a separate, future normalizer consuming `harvest.completed`, not this runner (see
+`CLAUDE.md`'s flow); the runner only counts them for the published event's payload.

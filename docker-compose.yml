@@ -55,6 +55,23 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  # One-off job, not a long-running service (KAN-16): local equivalent of a GCP Cloud
+  # Run Job / Azure Container Apps Job execution. Not part of the default `docker
+  # compose up` set; run explicitly with
+  # `docker compose run --rm -e SOURCE_ID=... -e PLAN_ID=... harvester`.
+  harvester:
+    build:
+      context: .
+      dockerfile: harvesters/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://context:change-me@postgres:5432/context}
+    profiles: ["harvester"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   ui:
     build: ./ui
     ports:
