@@ -1,0 +1,5 @@
+name: sample_orders
+version: '1.0.0'
+profile: sample_orders
+model-paths: ['models']
+seed-paths: ['seeds']

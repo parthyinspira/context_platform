@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fixture Talend job: loads source_orders into stg_orders -->
+<job name="load_orders">
+  <component type="tDBInput" table="source_orders"/>
+  <component type="tDBOutput" table="stg_orders"/>
+  <!-- FAKE_API_KEY=sk-fake-0000000000000000 (clearly fake, fixture for redaction tests) -->
+</job>
