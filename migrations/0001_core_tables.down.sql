@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS proposed_changes;
+DROP TABLE IF EXISTS chunks;
+DROP TABLE IF EXISTS edges;
+DROP TABLE IF EXISTS entities;
+DROP TABLE IF EXISTS sources;
