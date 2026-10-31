@@ -16,18 +16,32 @@ class _Row:
     data: dict
 
 
+def _row_tuple(row: dict) -> tuple:
+    return (
+        row["id"],
+        row["type"],
+        row["uri"],
+        row["schedule"],
+        row["credentials_ref"],
+        row["owner"],
+        row["sensitivity"],
+        row["status"],
+    )
+
+
 @dataclass
 class FakeSourcesCursor:
     conn: "FakeSourcesConnection"
     _result: tuple | None = None
+    _results: list[tuple] = field(default_factory=list)
 
-    def execute(self, sql: str, params: tuple) -> None:
+    def execute(self, sql: str, params: tuple = ()) -> None:
         sql_norm = " ".join(sql.split())
-        assert sql_norm.startswith("INSERT INTO sources"), f"unexpected SQL: {sql_norm}"
-        type_, uri, schedule, credentials_ref, owner, sensitivity = params
-        source_id = str(uuid.uuid4())
-        self.conn.inserted.append(
-            {
+
+        if sql_norm.startswith("INSERT INTO sources"):
+            type_, uri, schedule, credentials_ref, owner, sensitivity = params
+            source_id = str(uuid.uuid4())
+            row = {
                 "id": source_id,
                 "type": type_,
                 "uri": uri,
@@ -37,24 +51,57 @@ class FakeSourcesCursor:
                 "sensitivity": sensitivity,
                 "status": "active",
             }
-        )
-        self._result = (
-            source_id,
-            type_,
-            uri,
-            schedule,
-            credentials_ref,
-            owner,
-            sensitivity,
-            "active",
-        )
+            self.conn.rows[source_id] = row
+            self.conn.inserted.append(row)
+            self._result = _row_tuple(row)
+            return
 
-    def fetchone(self) -> tuple:
+        if sql_norm.startswith("SELECT") and "WHERE id = %s" in sql_norm:
+            (source_id,) = params
+            row = self.conn.rows.get(source_id)
+            self._result = _row_tuple(row) if row else None
+            return
+
+        if sql_norm.startswith("SELECT") and "FROM sources ORDER BY id" in sql_norm:
+            self._results = [
+                _row_tuple(row) for _, row in sorted(self.conn.rows.items())
+            ]
+            return
+
+        if sql_norm.startswith("UPDATE sources SET schedule = %s, status = %s"):
+            schedule, status, source_id = params
+            row = self.conn.rows.get(source_id)
+            if row is None:
+                self._result = None
+                return
+            row = {**row, "schedule": schedule, "status": status}
+            self.conn.rows[source_id] = row
+            self._result = _row_tuple(row)
+            return
+
+        if sql_norm.startswith("UPDATE sources SET status = 'disabled'"):
+            (source_id,) = params
+            row = self.conn.rows.get(source_id)
+            if row is None:
+                self._result = None
+                return
+            row = {**row, "status": "disabled"}
+            self.conn.rows[source_id] = row
+            self._result = _row_tuple(row)
+            return
+
+        raise AssertionError(f"unexpected SQL: {sql_norm}")
+
+    def fetchone(self) -> tuple | None:
         return self._result
+
+    def fetchall(self) -> list[tuple]:
+        return self._results
 
 
 @dataclass
 class FakeSourcesConnection:
+    rows: dict[str, dict] = field(default_factory=dict)
     inserted: list[dict] = field(default_factory=list)
     committed: bool = False
     closed: bool = False
@@ -176,3 +223,107 @@ def test_accepts_valid_cron_schedules(fakes, client, schedule) -> None:
     payload = {**VALID_PAYLOAD, "schedule": schedule}
     response = client.post("/sources", json=payload)
     assert response.status_code == 201
+
+
+# --- GET /sources (scenario: list-sources) ---
+
+
+def test_list_sources_returns_all_rows(fakes, client) -> None:
+    conn, _ = fakes
+    client.post("/sources", json=VALID_PAYLOAD)
+    client.post("/sources", json={**VALID_PAYLOAD, "uri": "https://github.com/example/other.git"})
+
+    response = client.get("/sources")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    assert {row["uri"] for row in body} == {
+        VALID_PAYLOAD["uri"],
+        "https://github.com/example/other.git",
+    }
+    for row in body:
+        assert row["credentials_ref"] == "git-repo-token"
+
+
+def test_list_sources_empty(fakes, client) -> None:
+    response = client.get("/sources")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+# --- PATCH /sources/{id} (scenarios: patch-schedule, patch-status,
+# patch-invalid-schedule, patch-invalid-status, patch-unknown-source) ---
+
+
+def test_patch_updates_schedule(fakes, client) -> None:
+    source_id = client.post("/sources", json=VALID_PAYLOAD).json()["id"]
+
+    response = client.patch(f"/sources/{source_id}", json={"schedule": "0 0 * * *"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schedule"] == "0 0 * * *"
+    assert body["status"] == "active"
+    assert body["uri"] == VALID_PAYLOAD["uri"]
+
+
+def test_patch_updates_status(fakes, client) -> None:
+    source_id = client.post("/sources", json=VALID_PAYLOAD).json()["id"]
+
+    response = client.patch(f"/sources/{source_id}", json={"status": "disabled"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "disabled"
+    assert body["schedule"] == VALID_PAYLOAD["schedule"]
+
+
+def test_patch_rejects_invalid_schedule(fakes, client) -> None:
+    conn, _ = fakes
+    source_id = client.post("/sources", json=VALID_PAYLOAD).json()["id"]
+
+    response = client.patch(f"/sources/{source_id}", json={"schedule": "not a cron"})
+
+    assert response.status_code == 422
+    assert conn.rows[source_id]["schedule"] == VALID_PAYLOAD["schedule"]
+
+
+def test_patch_rejects_invalid_status(fakes, client) -> None:
+    conn, _ = fakes
+    source_id = client.post("/sources", json=VALID_PAYLOAD).json()["id"]
+
+    response = client.patch(f"/sources/{source_id}", json={"status": "archived"})
+
+    assert response.status_code == 422
+    assert conn.rows[source_id]["status"] == "active"
+
+
+def test_patch_unknown_source_returns_404(fakes, client) -> None:
+    conn, _ = fakes
+
+    response = client.patch(f"/sources/{uuid.uuid4()}", json={"status": "disabled"})
+
+    assert response.status_code == 404
+    assert conn.rows == {}
+
+
+# --- DELETE /sources/{id} (scenarios: delete-soft-disables, delete-unknown-source) ---
+
+
+def test_delete_soft_disables_source(fakes, client) -> None:
+    conn, _ = fakes
+    source_id = client.post("/sources", json=VALID_PAYLOAD).json()["id"]
+
+    response = client.delete(f"/sources/{source_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "disabled"
+    assert source_id in conn.rows
+    assert conn.rows[source_id]["status"] == "disabled"
+
+
+def test_delete_unknown_source_returns_404(fakes, client) -> None:
+    response = client.delete(f"/sources/{uuid.uuid4()}")
+    assert response.status_code == 404

@@ -4,6 +4,7 @@ import re
 from pydantic import BaseModel, field_validator
 
 SENSITIVITY_LEVELS = {"public", "internal", "confidential", "restricted"}
+STATUS_VALUES = {"active", "disabled"}
 
 # A pragmatic 5-field cron check: each field is `*`, a number, a range, a step or a
 # comma-separated list of those. This intentionally does not validate field *ranges*
@@ -44,6 +45,34 @@ class SourceCreate(BaseModel):
     def valid_sensitivity(cls, value: str) -> str:
         if value not in SENSITIVITY_LEVELS:
             raise ValueError(f"sensitivity must be one of {sorted(SENSITIVITY_LEVELS)}")
+        return value
+
+
+class SourceUpdate(BaseModel):
+    """Partial update for `PATCH /sources/{id}`: only `schedule` and `status` may be
+    changed; `type`, `uri`, `credentials_ref`, `owner` and `sensitivity` are immutable
+    through this endpoint.
+    """
+
+    schedule: str | None = None
+    status: str | None = None
+
+    @field_validator("schedule")
+    @classmethod
+    def valid_cron(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if not is_valid_cron(value):
+            raise ValueError("schedule must be a valid 5-field cron expression")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def valid_status(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if value not in STATUS_VALUES:
+            raise ValueError(f"status must be one of {sorted(STATUS_VALUES)}")
         return value
 
 
