@@ -14,11 +14,17 @@ app = FastAPI(title="context-platform-api")
 
 
 def connection_factory_dependency() -> Any:
-    """Returns a zero-arg callable that opens a fresh DB connection per call.
+    """Open one DB connection for this request and return a zero-arg callable that
+    always returns that same connection.
 
-    Overridden in tests with a fake so no live Postgres is required.
+    The route and the `EventBus` (outbox) write must share one connection/transaction
+    so the `sources` insert and the `source.registered` outbox row commit atomically —
+    if they used separate connections, a crash between the two writes could leave a
+    source row with no corresponding event. Overridden in tests with a fake so no
+    live Postgres is required.
     """
-    return get_connection_factory()
+    conn = get_connection_factory()()
+    return lambda: conn
 
 
 def event_bus_dependency(
@@ -63,12 +69,13 @@ def create_source(
             ),
         )
         row = cur.fetchone()
+        source_id = str(row[0])
+        # Same connection as the insert above: if this raises, the `finally` closes
+        # without committing, so the source row is rolled back along with it.
+        event_bus.publish("source.registered", {"id": source_id})
         conn.commit()
     finally:
         conn.close()
-
-    source_id = str(row[0])
-    event_bus.publish("source.registered", {"id": source_id})
 
     return SourceOut(
         id=source_id,

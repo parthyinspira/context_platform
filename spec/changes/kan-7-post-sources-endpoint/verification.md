@@ -1,7 +1,7 @@
 # Verification
 
 Status: PASS
-Date: 2026-10-30   Commit: e0e3815 (pre-commit working tree; see PR commit for final SHA)
+Date: 2026-10-30   Commit: e9db548 (round 1); round 2 fix (atomic insert+outbox commit) in a follow-up commit on the same PR — see PR history for final SHA
 
 ## Checks
 | Check | Result |
@@ -30,5 +30,8 @@ Date: 2026-10-30   Commit: e0e3815 (pre-commit working tree; see PR commit for f
 | Validates type, uri, schedule (cron), credentials_ref, owner, sensitivity | reject invalid type/uri/schedule/credentials_ref/owner/sensitivity | PASS |
 | Stores row with status=active; returns id | register a source | PASS |
 
+## Review round 2 fix
+story-reviewer flagged `[blocking]`: the `sources` insert and the `source.registered` outbox write used separate DB connections/commits, so a crash between them could leave a source row with no event (breaking the outbox-pattern guarantee in CLAUDE.md). Fixed by making `connection_factory_dependency` open one connection per request and sharing it with the `EventBus`, so both writes commit in a single transaction; if `event_bus.publish` raises, the route's `finally` closes the connection without committing, rolling back the insert too. Re-verified live: `docker compose up -d --build postgres migrate api`, one `POST /sources` call, then `select count(*) from sources` and `select count(*) from outbox_events` both returned `1` — the insert and the event are written together. Re-ran `python -m pytest api/tests -q` (17 passed) and `ruff check api scheduler adapters --config pyproject.toml` (all checks passed) after the fix.
+
 ## Not verified
-(none — validation, storage, event publication and secret non-leakage were all verified both via mocked unit tests and a live `docker compose` Postgres run, not just fabricated)
+(none — validation, storage, atomic event publication and secret non-leakage were all verified both via mocked unit tests and a live `docker compose` Postgres run, not just fabricated)
