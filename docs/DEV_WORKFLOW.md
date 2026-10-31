@@ -2,6 +2,17 @@
 
 Every Jira story (`KAN-n`) is built by a **dev agent** and checked by a separate **review agent** before a human merges. The reviewer has no memory of the build session, so it checks the work against the story, not against the developer's reasoning.
 
+## Skills that keep development on track
+| Skill | When | What it does |
+|---|---|---|
+| `start-story` | start of every story | loads the story and docs, checks scope, creates the branch, agrees a plan before code |
+| `contract-check` | before every PR | checks code, schema, ontology, interface, adapters, secrets and docs agree |
+| `finish-story` | end of every story | runs tests, contract check, Definition of Done, opens the PR, runs the reviewer |
+| `story-reviewer` (agent) | after the PR | independent review against the acceptance criteria |
+| `new-harvester` (planned, KAN-87) | each new source system | scaffolds a harvester pack from the contract |
+
+Also enforced mechanically as the code appears: CI lint and tests, an import rule blocking cloud SDKs outside `adapters/`, migrations-only schema changes, secret scanning.
+
 ## Steps
 1. **Pick** a story; read its acceptance criteria and the relevant docs (`CLAUDE.md`, `docs/HARVESTERS.md`, `docs/ARCHITECTURE.md`, Confluence Contracts).
 2. **Dev agent** (Claude Code session): creates branch `kan-<n>-slug`, plans, implements with tests, runs lint and tests, updates docs and contracts if they changed, opens a PR whose description follows `.github/pull_request_template.md`.
