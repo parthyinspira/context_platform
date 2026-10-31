@@ -1,7 +1,10 @@
 # Verification
 
 Status: PASS
-Date: 2026-10-31   Commit: 103c1b141a68ff0346b29751580c13cbf260c6fe
+Date: 2026-10-31   Commit: 239a00b291c27ad178c94035a082781a1982690b
+
+## Reviewer round 1
+`story-reviewer` ran against commit `955b1cb` and returned CHANGES REQUESTED: one [blocking] finding — `WRITES_TO` edges were self-loops (`src_entity_id == dst_entity_id`), inconsistent with the `READS_FROM` convention and with `design.md`'s own description, and not caught by the original tests (which only asserted `dst`, never `src`). Fixed in commit `239a00b` (`ontology/sql_lineage.py`: `WRITES_TO` now uses the same `"query"` proxy source as `READS_FROM`); added `src != dst` and same-`src` assertions to the relevant tests so it cannot silently regress. Two [nit]s (a stale comment, a statement-as-expression) were also cleaned up. 12/12 tests still pass; lint still clean; see commit `239a00b`.
 
 ## Checks
 | Check | Result |
