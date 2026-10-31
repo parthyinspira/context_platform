@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from adapters.object_store import LocalObjectStore
-from harvesters.manifest import (
+from harvesters.framework.manifest import (
     Manifest,
     ManifestError,
     ManifestStore,
@@ -266,11 +266,34 @@ def _raw_manifest(*entries: dict) -> dict:
         {"outcome": None, "outcome_reason": "orphan reason", "outcome_at": None},
         {"ref": ""},
         {"size_bytes": -5},
+        {"size_bytes": True},
+        {"outcome": "deleted"},
+        {"discovered_at": "not-a-date"},
     ],
 )
 def test_loading_enforces_recording_rules(overrides):
     with pytest.raises(ManifestError):
         Manifest.from_dict(_raw_manifest(_raw_entry(**overrides)))
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"format_version": 1, "source_id": SOURCE_ID, "run_id": RUN_ID},  # no entries
+        _raw_manifest({"ref": "a.sql", "discovery_reason": "listed"}),  # no discovered_at
+        _raw_manifest("not-a-dict"),
+        "not-a-dict",
+    ],
+)
+def test_malformed_file_raises_manifest_error(data):
+    with pytest.raises(ManifestError):
+        Manifest.from_dict(data)
+
+
+def test_discovered_rejects_bool_size():
+    m = _manifest()
+    with pytest.raises(ManifestError):
+        m.discovered("a.sql", reason="listed", size_bytes=True)
 
 
 def test_loading_rejects_duplicate_refs():

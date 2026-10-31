@@ -77,7 +77,7 @@ class ManifestEntry:
         if not isinstance(ref, str) or not ref.strip():
             raise ManifestError("stored entry has no ref")
         size_bytes = data.get("size_bytes")
-        if size_bytes is not None and (not isinstance(size_bytes, int) or size_bytes < 0):
+        if size_bytes is not None and not _valid_size(size_bytes):
             raise ManifestError(f"stored entry {ref!r} has an invalid size_bytes")
         outcome = Outcome(data["outcome"]) if data.get("outcome") else None
         if outcome is None and (data.get("outcome_reason") or data.get("outcome_at")):
@@ -93,6 +93,10 @@ class ManifestEntry:
             outcome_reason=_clean_reason(data.get("outcome_reason")) if outcome else None,
             outcome_at=datetime.fromisoformat(data["outcome_at"]) if outcome else None,
         )
+
+
+def _valid_size(size_bytes: object) -> bool:
+    return isinstance(size_bytes, int) and not isinstance(size_bytes, bool) and size_bytes >= 0
 
 
 def _check_id(name: str, value: str) -> str:
@@ -130,8 +134,8 @@ class Manifest:
     def discovered(self, ref: str, reason: str, size_bytes: int | None = None) -> ManifestEntry:
         if not isinstance(ref, str) or not ref.strip():
             raise ManifestError("ref must be a non-empty string")
-        if size_bytes is not None and size_bytes < 0:
-            raise ManifestError("size_bytes must be zero or more")
+        if size_bytes is not None and not _valid_size(size_bytes):
+            raise ManifestError("size_bytes must be an integer, zero or more")
         clean = _clean_reason(reason)
         existing = self._entries.get(ref)
         if existing is not None:
@@ -207,14 +211,22 @@ class Manifest:
 
     @classmethod
     def from_dict(cls, data: dict, now: Callable[[], datetime] = _utcnow) -> Manifest:
-        if data.get("format_version") != MANIFEST_FORMAT_VERSION:
-            raise ManifestError(f"unsupported manifest format_version {data.get('format_version')}")
-        manifest = cls(source_id=data["source_id"], run_id=data["run_id"], now=now)
-        for raw in data["entries"]:
-            entry = ManifestEntry.from_dict(raw)
-            if entry.ref in manifest._entries:
-                raise ManifestError(f"stored manifest has duplicate ref {entry.ref!r}")
-            manifest._entries[entry.ref] = entry
+        """Rebuild a manifest from stored JSON; any malformed input raises `ManifestError`."""
+        try:
+            if data.get("format_version") != MANIFEST_FORMAT_VERSION:
+                raise ManifestError(
+                    f"unsupported manifest format_version {data.get('format_version')}"
+                )
+            manifest = cls(source_id=data["source_id"], run_id=data["run_id"], now=now)
+            for raw in data["entries"]:
+                entry = ManifestEntry.from_dict(raw)
+                if entry.ref in manifest._entries:
+                    raise ManifestError(f"stored manifest has duplicate ref {entry.ref!r}")
+                manifest._entries[entry.ref] = entry
+        except ManifestError:
+            raise
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+            raise ManifestError(f"malformed stored manifest: {exc!r}") from exc
         return manifest
 
     @classmethod

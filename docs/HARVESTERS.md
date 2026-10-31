@@ -58,7 +58,7 @@ class Harvester:
 9. **Deterministic first, LLM second.** Use parsers where possible (sqlglot, XML parsers, manifest readers). Use an LLM only for unstructured text, with citations.
 10. **Idempotent and resumable.** Re-running the same plan gives the same result; an interrupted run resumes from the manifest.
 11. **Everything is manifested.** Every discovered, fetched, skipped and failed object is recorded with a reason. The validator depends on this.
-    Implementation: `harvesters/manifest.py` (`Manifest`, `ManifestStore`). One JSON object per run at ObjectStore key `manifests/<source_id>/<run_id>.json`: `{format_version: 1, source_id, run_id, entries: [{ref, discovery_reason, discovered_at, size_bytes, outcome: fetched|skipped|failed|null, outcome_reason, outcome_at}]}`. An object must be discovered before it gets an outcome, and it gets at most one outcome. Reasons are redacted by the shared scanner. Loading enforces the same rules. The validator reads `by_outcome()`, `counts()` and `unaccounted()`.
+    Implementation: `harvesters/framework/manifest.py` (`Manifest`, `ManifestStore`). One JSON object per run at ObjectStore key `manifests/<source_id>/<run_id>.json`: `{format_version: 1, source_id, run_id, entries: [{ref, discovery_reason, discovered_at, size_bytes, outcome: fetched|skipped|failed|null, outcome_reason, outcome_at}]}`. An object must be discovered before it gets an outcome, and it gets at most one outcome. Reasons are redacted by the shared scanner. Loading enforces the same rules. The validator reads `by_outcome()`, `counts()` and `unaccounted()`.
 
 ## 4. Source-specific scoping
 
