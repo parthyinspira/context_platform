@@ -1,0 +1,9 @@
+version: 2
+models:
+  - name: stg_orders
+    description: Cleaned orders, one row per order.
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+  - name: mart_orders
+    description: Orders aggregated by customer and status, feeds the orders dashboard.
