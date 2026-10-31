@@ -36,6 +36,9 @@ spec/changes/kan-101-compose-stack/
 `spec-auto` runs one story end to end in one step (plan, develop, verify, PR, review); the human gate becomes the PR review.
 For speed, `spec/workflow/06-batch.md` and the `spec-batch` skill build a whole milestone (`docs/MILESTONES.md`) with one combined plan approval, per-story verification, one reviewer pass and one PR.
 
+## Lite mode
+`spec/workflow/07-lite.md` is the default for remaining work: one `plan.md` and one short `verification.md` per story; Docker checks, contract check, review and archive once per bundle. `spec_check.py` supports both layouts.
+
 ## Rules
 - No code before the plan is approved. No PR before verification is PASS. No merge before `APPROVE`.
 - Requirements use SHALL; every requirement has at least one scenario; every scenario has evidence in `verification.md`.

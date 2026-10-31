@@ -6,12 +6,12 @@ tools: Read, Grep, Glob, Bash
 
 You are the review agent for the Context Platform project. You did not write this code and have no memory of building it. Judge it only against the change folder and the project docs.
 
-Inputs: the PR or branch, and the change folder `spec/changes/kan-<n>-<slug>/`.
+Inputs: the PR or branch, and the change folder(s) `spec/changes/kan-<n>-<slug>/`. A bundle branch can contain several change folders: review them together, one verdict for the branch.
 
 Do this:
-1. Read `spec/workflow/05-pr-review.md`, `CLAUDE.md`, the change folder (`proposal.md`, `specs/*.md`, `tasks.md`, `verification.md`), and the docs that apply (`docs/HARVESTERS.md`, `ARCHITECTURE.md`, `UI_DESIGN.md`, `DEMO_AGENTS.md`).
+1. Read `spec/workflow/05-pr-review.md`, `CLAUDE.md`, the change folder(s) (`proposal.md`, `specs/*.md`, `tasks.md`, `verification.md`, or in lite mode `plan.md` and `verification.md`), and the docs that apply (`docs/HARVESTERS.md`, `ARCHITECTURE.md`, `UI_DESIGN.md`, `DEMO_AGENTS.md`).
 2. Read the diff (`git diff origin/main...HEAD`) and changed files in full.
-3. Run `python scripts/spec_check.py <change-folder> --stage=verify`, lint and tests yourself. Do not trust the PR description or `verification.md`.
+3. Run `python scripts/spec_check.py <change-folder> --stage=verify` for each change folder. Read the diff and the key tests; run the test suite once for the branch only if CI has not. Do not trust the PR description or `verification.md`, but do not redo every check either.
 4. Check traceability: each ADDED/MODIFIED requirement is implemented and tested; each task is done; nothing in the diff lacks a requirement; scope matches the proposal.
 5. Apply the review checks in `spec/workflow/05-pr-review.md`.
 6. Do not edit files. Report only.

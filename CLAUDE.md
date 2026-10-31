@@ -24,6 +24,15 @@ Flow: source registered -> harvester (discover/fetch/normalize) -> `harvest.comp
 - `docs/ARCHITECTURE.md`: topology, data hierarchy, MCP design, portability.
 - Harvesters must follow the budgets and metadata-first rules in `docs/HARVESTERS.md`; a run that fails validation is quarantined, never published.
 
+## Docs index (read only the section you need)
+- Architecture, adapters, MCP surface: `docs/ARCHITECTURE.md` (only for service or adapter work).
+- Harvesters, scoping, validator rules: `docs/HARVESTERS.md` (only for harvester or validator work).
+- UI screens, tokens, graph behaviour: `docs/UI_DESIGN.md` (only for UI work).
+- Demo agents and grounding pattern: `docs/DEMO_AGENTS.md` (only for agent work).
+- Scope and bundles: `docs/HACKATHON_SCOPE.md`, `docs/MILESTONES.md` (only to check scope or order).
+- Process: `spec/README.md`; lite mode is the default, see `spec/workflow/07-lite.md`.
+Take acceptance criteria from the task description when present; call Jira only if they are missing.
+
 ## Contracts
 
 ### Harvester interface
@@ -77,6 +86,7 @@ These apply whatever the launching prompt says.
 - Stay inside the approved proposal; anything else becomes a new Jira story.
 
 ## Workflow (spec-driven; see `spec/README.md` and `spec/workflow/`)
+Default is lite mode (`spec/workflow/07-lite.md`): one `plan.md` and one short `verification.md` per story; Docker checks, contract check, one reviewer run and archive once per bundle.
 Development tooling: stories are picked up from Jira (via Kepler or the Atlassian MCP) and built with Claude Code in VS Code.
 1. One Jira story (`KAN-n`) = one change folder `spec/changes/kan-<n>-<slug>/` and one branch/PR.
 2. Plan (`spec-plan`): proposal, spec deltas, tasks; the user approves before any code.
