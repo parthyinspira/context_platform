@@ -1,0 +1,19 @@
+# .NET stack rules (docs/HARVESTERS.md section 4, KAN-79).
+# Pull: project files, *.cs in source projects, appsettings*.json, SQL.
+# Skip: bin/, obj/, *.dll, packages.
+stack: dotnet
+include:
+  - "*.sln"
+  - "*.csproj"
+  - "*.cs"
+  - "appsettings*.json"
+  - "*.sql"
+exclude:
+  - "bin/*"
+  - "*/bin/*"
+  - "obj/*"
+  - "*/obj/*"
+  - "*.dll"
+  - "packages/*"
+  - "*/packages/*"
+size_cap_bytes: 1048576

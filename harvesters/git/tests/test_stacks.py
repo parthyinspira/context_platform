@@ -3,7 +3,7 @@ from harvesters.git.stacks import detect_stacks
 
 def test_detect_sql_dbt_stack():
     paths = ["dbt_project.yml", "models/staging/stg_orders.sql", "schema.yml"]
-    assert "sql-dbt" in detect_stacks(paths)
+    assert "sql_dbt" in detect_stacks(paths)
 
 
 def test_detect_java_stack():

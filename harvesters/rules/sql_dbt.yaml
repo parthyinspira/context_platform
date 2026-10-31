@@ -1,0 +1,17 @@
+# SQL/dbt stack rules (docs/HARVESTERS.md section 4, KAN-79).
+# Pull: DDL, views, procedures, models and schema.yml. Skip: seed CSVs and
+# large data scripts.
+stack: sql_dbt
+include:
+  - "*.sql"
+  - "dbt_project.yml"
+  - "schema.yml"
+  - "*.yml"
+  - "*.yaml"
+exclude:
+  - "*.csv"
+  - "target/*"
+  - "*/target/*"
+  - "dbt_packages/*"
+  - "*/dbt_packages/*"
+size_cap_bytes: 1048576

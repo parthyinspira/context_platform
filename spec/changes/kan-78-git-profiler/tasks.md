@@ -5,7 +5,7 @@
 - [x] 3. `harvesters/git/harvester.py`: `discover()` via partial clone + `git ls-tree -r -l HEAD` (scenario: discover-lists-without-full-clone, discover-no-blob-content-fetched) - test first
 - [x] 4. `harvesters/git/harvester.py`: `GitProfile` + `profile()` with per-stack size estimates (scenario: profile-includes-size-estimates, profile-estimate-excludes-denylisted-paths) - test first
 - [x] 5. `harvesters/git/harvester.py`: `plan()` from detected stacks (scenario: plan-includes-detected-stack-patterns) - test first
-- [x] 6. `harvesters/git/harvester.py`: `harvest()`/`normalize()`/`validate()` stubs (scenario: harvest-not-yet-implemented) - test first
-- [x] 7. Register `GitHarvester` for source type `"git"` in `harvesters/__init__.py`
+- [x] 6. `harvesters/git/harvester.py`: `harvest()` delegating to KAN-80's `harvest_git()`; `normalize()`/`validate()` stubs (scenario: harvest-fetches-planned-objects, normalize-validate-not-yet-implemented) - test first
+- [x] 7. Register `GitHarvester` for source type `"git"` in `harvesters/__init__.py`; reconcile add/add conflict with KAN-80's export of `harvest_git`/`GitHarvestResult`
 - [x] 8. Docs and contracts updated (none needed beyond the new capability spec; `docs/HARVESTERS.md` already documents this behaviour)
 - [x] 9. verification.md completed

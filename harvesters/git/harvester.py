@@ -1,18 +1,25 @@
 """Git harvester: partial-clone discovery, stack detection and profiling (KAN-78).
 
 Implements the `connect`/`discover`/`profile`/`plan` slice of
-`docs/HARVESTERS.md` section 4 ("Git"). `harvest()`, `normalize()` and
-`validate()` are deferred to a follow-up Epic 3 story (see
-`spec/changes/kan-78-git-profiler/proposal.md` "Out of scope").
+`docs/HARVESTERS.md` section 4 ("Git"). `harvest()` delegates to
+`harvest_git()` (KAN-80, `harvesters.git.sparse_fetch`) for the actual
+sparse fetch. `normalize()` and `validate()` are deferred to a follow-up
+Epic 3 story (see `spec/changes/kan-78-git-profiler/proposal.md`
+"Out of scope").
 
 Discovery never fetches blob content: it creates a blobless partial clone
 (`git clone --filter=blob:none --sparse --no-checkout`) and lists files with
 `git ls-tree -r -l HEAD`, which reads tree/size metadata without blob content.
+
+Include/exclude rules and size caps per stack come from the YAML rules built
+in KAN-79 (`harvesters.framework.stack_rules.load_stack_rules`); this module
+only detects which stacks are present and merges their plans.
 """
 from __future__ import annotations
 
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -30,10 +37,13 @@ from harvesters.base import (
     ValidationReport,
 )
 from harvesters.framework import Budgets, HarvestPlan
-from harvesters.git.stacks import UNIVERSAL_EXCLUDE, detect_stacks, matches_any, stack_rule
+from harvesters.framework.manifest import Manifest
+from harvesters.framework.stack_rules import load_stack_rules
+from harvesters.git.sparse_fetch import harvest_git
+from harvesters.git.stacks import detect_stacks
 from harvesters.registry import register_harvester
 
-DEFAULT_SIZE_CAP_BYTES = 1_000_000
+DEFAULT_SIZE_CAP_BYTES = 1_048_576
 _GIT_TIMEOUT_SECONDS = 60
 
 
@@ -99,8 +109,9 @@ class GitHarvester(Harvester):
         refs = scope.refs()
         paths = [r.path for r in refs]
         detected = detect_stacks(paths)
+        rules = {name: load_stack_rules(name) for name in detected}
 
-        pull_bytes: dict[str, int] = {name: 0 for name in detected}
+        pull_bytes: dict[str, int] = dict.fromkeys(detected, 0)
         skip_bytes = 0
         counts_by_type: dict[str, int] = {}
 
@@ -108,18 +119,16 @@ class GitHarvester(Harvester):
             ext = Path(ref.path).suffix or "(none)"
             counts_by_type[ext] = counts_by_type.get(ext, 0) + 1
 
-            if matches_any(ref.path, UNIVERSAL_EXCLUDE) or ref.size_bytes > DEFAULT_SIZE_CAP_BYTES:
-                skip_bytes += ref.size_bytes
-                continue
-
+            over_cap = ref.size_bytes > DEFAULT_SIZE_CAP_BYTES
             pulled_by_a_stack = False
-            for name in detected:
-                rule = stack_rule(name)
-                if matches_any(ref.path, rule.exclude):
-                    continue
-                if matches_any(ref.path, rule.include):
-                    pull_bytes[name] += ref.size_bytes
-                    pulled_by_a_stack = True
+            if not over_cap:
+                for name, rule in rules.items():
+                    cap = rule.size_cap_bytes or DEFAULT_SIZE_CAP_BYTES
+                    if ref.size_bytes > cap:
+                        continue
+                    if rule.is_included(ref.path):
+                        pull_bytes[name] += ref.size_bytes
+                        pulled_by_a_stack = True
             if not pulled_by_a_stack:
                 skip_bytes += ref.size_bytes
 
@@ -135,25 +144,28 @@ class GitHarvester(Harvester):
     def plan(self, profile: Profile) -> HarvestPlan:
         detected = profile.detected_stacks if isinstance(profile, GitProfile) else []
         include: list[str] = []
-        exclude: list[str] = list(UNIVERSAL_EXCLUDE)
+        exclude: list[str] = []
+        size_caps: list[int] = []
         for name in detected:
-            rule = stack_rule(name)
+            rule = load_stack_rules(name)
             include.extend(rule.include)
             exclude.extend(rule.exclude)
+            if rule.size_cap_bytes is not None:
+                size_caps.append(rule.size_cap_bytes)
         return HarvestPlan(
             include=tuple(dict.fromkeys(include)),
             exclude=tuple(dict.fromkeys(exclude)),
-            size_cap_bytes=DEFAULT_SIZE_CAP_BYTES,
+            size_cap_bytes=min(size_caps) if size_caps else DEFAULT_SIZE_CAP_BYTES,
             budgets=Budgets(),
         )
 
     def harvest(
         self, source: Any, plan: HarvestPlan, cursor: Optional[str]
     ) -> Iterable[RawObject]:
-        raise NotImplementedError(
-            "GitHarvester.harvest() is deferred to the Epic 3 follow-up story "
-            "that builds on KAN-78's discover/profile/plan"
-        )
+        source_id = str(_get(source, "id", "unknown-source"))
+        manifest = Manifest(source_id=source_id, run_id=str(uuid.uuid4()))
+        result = harvest_git(source, plan, cursor, manifest)
+        return result.objects
 
     def normalize(self, raw: RawObject) -> list[Entity | Edge | Chunk]:
         raise NotImplementedError(
@@ -170,10 +182,14 @@ class GitHarvester(Harvester):
         )
 
 
-def _source_uri(source: Any) -> str:
+def _get(source: Any, key: str, default: Any = None) -> Any:
     if isinstance(source, dict):
-        return source["uri"]
-    return source.uri
+        return source.get(key, default)
+    return getattr(source, key, default)
+
+
+def _source_uri(source: Any) -> str:
+    return _get(source, "uri")
 
 
 def _parse_ls_tree_line(line: str) -> ScopeNode | None:

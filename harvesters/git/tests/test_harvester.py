@@ -77,7 +77,7 @@ def test_profile_detects_sql_dbt_stack(sql_dbt_repo):
     scope = h.discover({"uri": sql_dbt_repo})
     profile = h.profile({"uri": sql_dbt_repo}, scope)
     assert isinstance(profile, GitProfile)
-    assert "sql-dbt" in profile.detected_stacks
+    assert "sql_dbt" in profile.detected_stacks
 
 
 def test_profile_detects_java_stack_and_excludes_target(java_repo):
@@ -149,10 +149,18 @@ def test_plan_includes_detected_stack_patterns(sql_dbt_repo):
     assert "*/.git/*" in plan.exclude
 
 
-def test_harvest_normalize_validate_not_yet_implemented():
+def test_harvest_delegates_to_sparse_fetch(sql_dbt_repo):
     h = GitHarvester()
-    with pytest.raises(NotImplementedError):
-        list(h.harvest({"uri": "unused"}, h.plan(GitProfile(object_count=0, total_bytes=0)), None))
+    scope = h.discover({"uri": sql_dbt_repo})
+    profile = h.profile({"uri": sql_dbt_repo}, scope)
+    plan = h.plan(profile)
+    objects = list(h.harvest({"uri": sql_dbt_repo, "id": "src-1"}, plan, None))
+    fetched_paths = {o.external_id for o in objects}
+    assert "models/staging/stg_orders.sql" in fetched_paths
+
+
+def test_normalize_validate_not_yet_implemented():
+    h = GitHarvester()
     with pytest.raises(NotImplementedError):
         h.normalize(None)
     with pytest.raises(NotImplementedError):

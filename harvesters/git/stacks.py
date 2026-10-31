@@ -1,9 +1,11 @@
-"""Stack detection rules for the git harvester (KAN-78).
+"""Stack detection for the git harvester (KAN-78).
 
-Mirrors the table in `docs/HARVESTERS.md` section 4 ("Git"): each stack is
-detected by marker files/extensions, and has its own include/exclude glob
-patterns (`fnmatch` syntax, matched against repo-relative paths). The
-universal denylist applies regardless of detected stack.
+Detects which stacks (SQL/dbt, Java, .NET, Talend, shell, docs) are present
+in a repository from marker files/extensions, per the table in
+`docs/HARVESTERS.md` section 4 ("Git"). Include/exclude rules and size caps
+per stack are *not* duplicated here: they are loaded from the YAML rules
+built in KAN-79 (`harvesters.framework.stack_rules.load_stack_rules`), so
+there is one source of truth for what a stack pulls and skips.
 """
 from __future__ import annotations
 
@@ -12,65 +14,20 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class StackRule:
+class StackMarkers:
+    """Marker glob patterns that identify a stack; matched against repo paths."""
+
     name: str
-    markers: tuple[str, ...]  # glob patterns; any match detects the stack
-    include: tuple[str, ...]
-    exclude: tuple[str, ...] = ()
+    markers: tuple[str, ...]
 
 
-UNIVERSAL_EXCLUDE: tuple[str, ...] = (
-    "*/.git/*",
-    "*/node_modules/*",
-    "*/vendor/*",
-    "*.lock",
-    "*.min.js",
-    "*.min.css",
-    "*.zip",
-    "*.tar",
-    "*.tar.gz",
-    "*.jar",
-    "*.dll",
-    "*.exe",
-    "*.class",
-    "*.png",
-    "*.jpg",
-    "*.jpeg",
-    "*.gif",
-    "*.ico",
-)
-
-STACK_RULES: tuple[StackRule, ...] = (
-    StackRule(
-        name="sql-dbt",
-        markers=("dbt_project.yml", "*.sql"),
-        include=("*.sql", "schema.yml", "dbt_project.yml"),
-        exclude=("*/seeds/*",),
-    ),
-    StackRule(
-        name="java",
-        markers=("pom.xml", "build.gradle"),
-        include=("pom.xml", "build.gradle", "src/main/**/*.java", "*.sql", "src/main/resources/**"),
-        exclude=("*/target/*", "*.jar", "*.class", "src/test/*"),
-    ),
-    StackRule(
-        name="dotnet",
-        markers=("*.sln", "*.csproj"),
-        include=("*.sln", "*.csproj", "*.cs", "appsettings*.json", "*.sql"),
-        exclude=("*/bin/*", "*/obj/*", "*.dll"),
-    ),
-    StackRule(
-        name="talend",
-        markers=("talend.project", "*.item", "*.properties"),
-        include=("talend.project", "*.item", "*.properties"),
-        exclude=("*.screenshot", "*.png", "*.jar", "*/lib/*", "*/screenshots/*"),
-    ),
-    StackRule(
-        name="shell",
-        markers=("*.sh", "*.ps1", "*.bat"),
-        include=("*.sh", "*.ps1", "*.bat"),
-        exclude=("*.log",),
-    ),
+# `name` matches a `harvesters/rules/<name>.yaml` file (KAN-79 naming).
+STACK_MARKERS: tuple[StackMarkers, ...] = (
+    StackMarkers(name="sql_dbt", markers=("dbt_project.yml", "*.sql")),
+    StackMarkers(name="java", markers=("pom.xml", "build.gradle", "build.gradle.kts")),
+    StackMarkers(name="dotnet", markers=("*.sln", "*.csproj")),
+    StackMarkers(name="talend", markers=("talend.project", "*.item", "*.properties")),
+    StackMarkers(name="shell", markers=("*.sh", "*.ps1", "*.bat")),
 )
 
 
@@ -81,17 +38,13 @@ def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
 def detect_stacks(paths: list[str]) -> list[str]:
     """Return the names of every stack whose marker pattern matches at least one path."""
     detected: list[str] = []
-    for rule in STACK_RULES:
-        if any(
-            matches_any(p, rule.markers) or matches_any(p.rsplit("/", 1)[-1], rule.markers)
-            for p in paths
-        ):
-            detected.append(rule.name)
+    for stack in STACK_MARKERS:
+        if matches_any_path(paths, stack.markers):
+            detected.append(stack.name)
     return detected
 
 
-def stack_rule(name: str) -> StackRule:
-    for rule in STACK_RULES:
-        if rule.name == name:
-            return rule
-    raise KeyError(f"no stack rule named '{name}'")
+def matches_any_path(paths: list[str], patterns: tuple[str, ...]) -> bool:
+    return any(
+        matches_any(p, patterns) or matches_any(p.rsplit("/", 1)[-1], patterns) for p in paths
+    )
