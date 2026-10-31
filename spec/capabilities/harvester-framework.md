@@ -238,6 +238,33 @@ The project SHALL provide a deterministic, non-sensitive fixture set under `fixt
 - **When** it is run twice against a clean output directory
 - **Then** the two runs produce byte-identical file trees
 
+### Requirement: Git sparse fetch
+Given an approved `HarvestPlan` and a cursor, the Git harvest step SHALL fetch only paths the plan includes, under the plan's size cap, incrementally by commit SHA, and SHALL record every discovered path in a `Manifest` with a reason.
+
+#### Scenario: excluded and oversize paths are never fetched
+- **Given** a plan that excludes `target/*` and caps object size at 1 MB, and a repository containing an included small file, an excluded `target/` file and an included file over the cap
+- **When** `harvest_git` runs with no cursor
+- **Then** only the included, under-cap file is returned as a `RawObject`, and the excluded and oversize files are each recorded `skipped` in the manifest with a reason
+
+#### Scenario: incremental by commit SHA
+- **Given** a repository harvested once at commit `A`, then a second commit `B` that changes one file and leaves another untouched
+- **When** `harvest_git` runs again with `cursor=A`
+- **Then** only the file changed between `A` and `B` is returned as a `RawObject`, and the untouched file is recorded `skipped` with reason "unchanged since cursor"
+
+#### Scenario: size cap enforced
+- **Given** a plan with `size_cap_bytes=1024` and a repository file of 2048 bytes
+- **When** `harvest_git` runs
+- **Then** the file is not fetched and is recorded `skipped` with a reason naming the size cap
+
+#### Scenario: every discovered path has one manifest entry
+- **Given** a harvest run over a repository with included, excluded and oversize paths
+- **When** the run completes
+- **Then** every discovered path has exactly one outcome (`fetched` or `skipped`) with a non-empty reason, readable via `Manifest.counts()` and `Manifest.by_outcome()`
+
+#### Scenario: budget stops the fetch cleanly
+- **Given** a plan with `budgets.max_files=1` and two included, under-cap files
+- **When** `harvest_git` runs
+- **Then** exactly one `RawObject` is returned, the second file is left `unaccounted` in the manifest (discovered but no outcome), and the function reports which budget was hit
 ### Requirement: Harvester runs as a one-off container
 The project SHALL provide a runner (`harvesters/run.py`, entrypoint `python -m harvesters.run`) that, given a `source_id` and a `plan_id` (the id of an already `PLANNED`/`APPROVED` `harvest_runs` row, whose `plan` column holds the `HarvestPlan`), drives `connect -> discover -> harvest -> normalize -> validate` for the registered `Harvester` of that source's type, records each state transition and the manifest on the `harvest_runs` row, evaluates the result with `PublishQuarantineGate`, and publishes `harvest.completed` on the `EventBus` with the run id, source id, final state, and `published`/`warning` flags. The runner SHALL read `SOURCE_ID`, `PLAN_ID` and `DATABASE_URL` from the environment (overridable by CLI flags), and SHALL NOT import any cloud-provider SDK, so the same container image runs unmodified under `docker compose run`, a GCP Cloud Run Job and an Azure Container Apps Job.
 
