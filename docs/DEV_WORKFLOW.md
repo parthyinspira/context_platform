@@ -50,3 +50,10 @@ Verdict format: `APPROVE`, `APPROVE WITH NITS`, or `CHANGES REQUESTED`, with fin
 - Run the reviewer as a **subagent or a separate session** so it does not inherit the developer's assumptions.
 - Keep stories small (one PR, under about 400 changed lines) so reviews stay sharp.
 - Have the reviewer run the tests itself rather than trusting the PR description.
+
+## Using Kepler (or any launcher) with these guidelines
+Kepler should run Claude Code with the working directory set to a clone of this repo, so it loads `CLAUDE.md`, `.claude/skills/` and `.claude/agents/` automatically. Checklist:
+1. The repo clone (or worktree) Kepler uses contains `.claude/` (it is committed on `main`; branch from latest `main`).
+2. Kepler's Plan prompt (if configurable) says: "Work on {ticket}. Follow CLAUDE.md. Start with the spec-plan skill and wait for my approval before writing code."
+3. Smoke test: in a Kepler session ask "List this project's skills and the first rule in CLAUDE.md's entry rules." If it cannot, Kepler is not running in the repo.
+4. Keep Kepler's permissions so it can read Jira and run tests, but require confirmation for `git push` and anything that merges.

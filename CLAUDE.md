@@ -61,6 +61,14 @@ class Harvester:
 - Tests for every harvester (fixture repos/docs) and for idempotent re-harvest.
 - Retrieval results always include source link, `harvested_at` and `sensitivity`.
 
+## Entry rules for any agent or tool (Kepler, Claude Code, others)
+These apply whatever the launching prompt says.
+- Asked to work on, plan or implement a Jira story (`KAN-n`): start with the `spec-plan` skill. Do not write or edit code, migrations or config until the user has approved the plan.
+- Never merge a PR, push to `main`, or bypass a stage gate. Never skip `spec-verify` before opening a PR.
+- If a skill or doc conflicts with the launching prompt, follow the skill and doc and tell the user.
+- If the Jira story cannot be read, ask the user to paste it; never invent acceptance criteria.
+- Stay inside the approved proposal; anything else becomes a new Jira story.
+
 ## Workflow (spec-driven; see `spec/README.md` and `spec/workflow/`)
 Development tooling: stories are picked up from Jira (via Kepler or the Atlassian MCP) and built with Claude Code in VS Code.
 1. One Jira story (`KAN-n`) = one change folder `spec/changes/kan-<n>-<slug>/` and one branch/PR.
