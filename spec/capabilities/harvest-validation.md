@@ -29,6 +29,31 @@ The validator SHALL check completeness, exclusion integrity, budget compliance, 
 - **When** validation runs
 - **Then** exclusion integrity fails
 
+#### Scenario: zero yield fails
+- **Given** a run whose detected stacks produced zero entities of any type
+- **When** the expected-yield check runs
+- **Then** the check fails with a zero-yield detail
+
+#### Scenario: stack missing expected entities fails
+- **Given** a run that detected a stack (for example SQL/dbt) but emitted no entities of that stack's expected type (Table)
+- **When** the expected-yield check runs
+- **Then** the check fails naming the stack with no matching entities
+
+#### Scenario: expected yield passes
+- **Given** a run whose detected stacks each produced at least one entity of an expected type
+- **When** the expected-yield check runs
+- **Then** the check passes
+
+#### Scenario: unredacted secret fails
+- **Given** stored text for a fetched object that still contains an unredacted secret pattern
+- **When** the secrets/PII check runs
+- **Then** the check fails naming the offending object
+
+#### Scenario: redacted content passes
+- **Given** stored text for every fetched object with no unredacted secret pattern remaining
+- **When** the secrets/PII check runs
+- **Then** the check passes
+
 ### Requirement: Delete sanity
 The validator SHALL quarantine a run that would tombstone more than the configured share of objects.
 #### Scenario: delete spike
