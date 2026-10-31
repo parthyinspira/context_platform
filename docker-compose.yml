@@ -42,7 +42,9 @@ services:
         condition: service_completed_successfully
 
   scheduler:
-    build: ./scheduler
+    build:
+      context: .
+      dockerfile: scheduler/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://context:change-me@postgres:5432/context}
     ports:
