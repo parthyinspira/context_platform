@@ -22,3 +22,6 @@ Batch mode keeps the five stages and the gates but moves the human approval from
 
 ## End of milestone
 Run the milestone's "You can then" check from `docs/MILESTONES.md` (for example `docker compose up` and open the UI), record the result in the batch summary, run `story-reviewer` on the branch, then open one PR.
+
+## Auto mode for one story (`spec-auto`)
+For a single story, `spec-auto` runs plan, develop, verify, PR and review in one go. The human gate moves from "approve the plan" to "review the PR and the reviewer's verdict". Starting `spec-auto` is the explicit pre-approval; `proposal.md` records "Approved by: auto (user started spec-auto), <date>; human review at PR". Everything else is unchanged: tests first, `spec_check`, `contract-check`, `secret-scan`, the reviewer agent, the stop conditions above, and no merge or push to `main` by an agent. Use it for well-specified stories; use the normal five stages when the story is risky or unclear.

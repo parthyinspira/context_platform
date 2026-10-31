@@ -32,7 +32,8 @@ spec/changes/kan-101-compose-stack/
   verification.md    evidence per scenario, written in stage 3
 ```
 
-## Batch mode
+## Auto and batch mode
+`spec-auto` runs one story end to end in one step (plan, develop, verify, PR, review); the human gate becomes the PR review.
 For speed, `spec/workflow/06-batch.md` and the `spec-batch` skill build a whole milestone (`docs/MILESTONES.md`) with one combined plan approval, per-story verification, one reviewer pass and one PR.
 
 ## Rules

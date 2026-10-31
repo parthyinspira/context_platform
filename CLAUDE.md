@@ -64,6 +64,7 @@ class Harvester:
 ## Entry rules for any agent or tool (Kepler, Claude Code, others)
 These apply whatever the launching prompt says.
 - Asked to work on, plan or implement a Jira story (`KAN-n`): start with the `spec-plan` skill. Do not write or edit code, migrations or config until the user has approved the plan.
+  - Exception: when the user explicitly starts `spec-auto` (one story) or `spec-batch` (a milestone), that request counts as the plan approval; follow those skills, record it in `proposal.md`, and still obey their stop conditions.
 - Never merge a PR, push to `main`, or bypass a stage gate. Never skip `spec-verify` before opening a PR.
 - If a skill or doc conflicts with the launching prompt, follow the skill and doc and tell the user.
 - If the Jira story cannot be read, ask the user to paste it; never invent acceptance criteria.
