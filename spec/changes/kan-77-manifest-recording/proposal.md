@@ -32,7 +32,7 @@ Jira: https://inspiradataintegration.atlassian.net/browse/KAN-77   Epic: KAN-74 
 2. "used by the validator" -> scenarios: validator reads outcomes and unaccounted objects, manifest persisted and reloaded per run
 
 ## Affected
-Capabilities: `spec/capabilities/harvester-framework.md` (ADDED requirement "Manifest recording")   Docs/contracts: none changed. The `Harvester` interface signatures in CLAUDE.md and `docs/HARVESTERS.md` are unchanged; `validate(plan, manifest, results)` already names a manifest, and this story defines its shape. No schema, ontology or Confluence Contracts change.
+Capabilities: `spec/capabilities/harvester-framework.md` (ADDED requirement "Manifest recording")   Docs/contracts: `docs/HARVESTERS.md` rule 11 gained a note on the manifest format (added in review round 1); no contract changed. The `Harvester` interface signatures in CLAUDE.md and `docs/HARVESTERS.md` are unchanged; `validate(plan, manifest, results)` already names a manifest, and this story defines its shape. No schema, ontology or Confluence Contracts change.
 
 ## Risks and open questions
 - Dependencies KAN-75, KAN-12, KAN-76, KAN-83 are all To Do. Assumption: KAN-77 is built first as a standalone module that those stories integrate; "used by the validator" is satisfied by the read API plus tests that consume it the way the validator will. KAN-83 may still ask for extra read helpers; it can add them.
@@ -40,7 +40,13 @@ Capabilities: `spec/capabilities/harvester-framework.md` (ADDED requirement "Man
 - Branch is `kepler/kan-77-manifest-recording` (Kepler prefix) rather than plain `kan-77-manifest-recording`; based on current `main` (d3a6344).
 
 ## Changes during development
-(none)
+- Review round 1 (story-reviewer, APPROVE WITH NITS) led to these changes, all inside this story's scope:
+  - Loading a stored manifest now enforces the recording rules (reason required, outcome needs a reason, no duplicate refs) and redacts reasons.
+  - `ManifestStore.load` rejects a body whose `source_id`/`run_id` differ from the key, and forwards an injected clock.
+  - The end-to-end check over `fixtures/repos/java-sample` is now an in-repo test.
+  - New delta scenario "loaded manifest obeys the recording rules".
+  - `docs/HARVESTERS.md` rule 11 now documents the manifest format and key. This is a doc note only; the interface signatures are unchanged.
+- Not done here: the reviewer flagged an I001 lint error in `api/tests/test_source_registered_consumer.py` that is already on main. It is outside this story and is left for a separate fix.
 
 ## Approval
 Approved by: auto (user started spec-auto), 2026-10-31; human review at PR

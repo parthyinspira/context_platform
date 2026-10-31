@@ -38,3 +38,8 @@ Every harvest run SHALL record each object it discovered, fetched, skipped or fa
 - **Given** a recorded manifest for source `S` and run `R`
 - **When** it is saved through the `ObjectStore` and loaded again by `S` and `R`
 - **Then** the loaded manifest is equal to the saved one, stored at key `manifests/S/R.json`
+
+#### Scenario: loaded manifest obeys the recording rules
+- **Given** a stored manifest file with a blank reason, an outcome without a reason, a duplicate ref, an unredacted secret in a reason, or a body whose `source_id`/`run_id` differ from the requested key
+- **When** it is loaded
+- **Then** loading is rejected, except for the secret, which is redacted in the loaded entry

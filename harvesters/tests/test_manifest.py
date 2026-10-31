@@ -3,6 +3,7 @@
 Scenarios map to spec/changes/kan-77-manifest-recording/specs/harvester-framework.md.
 """
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -230,6 +231,105 @@ def test_reloaded_manifest_keeps_rules():
         m.fetched("target/app.jar", reason="matched include")
     m.fetched("models/pending.sql", reason="matched include models/**/*.sql")
     assert m.unaccounted() == []
+
+
+def _raw_entry(**overrides) -> dict:
+    entry = {
+        "ref": "a.sql",
+        "discovery_reason": "listed",
+        "discovered_at": FIXED_NOW.isoformat(),
+        "size_bytes": 1,
+        "outcome": "fetched",
+        "outcome_reason": "matched include",
+        "outcome_at": FIXED_NOW.isoformat(),
+    }
+    entry.update(overrides)
+    return entry
+
+
+def _raw_manifest(*entries: dict) -> dict:
+    return {
+        "format_version": 1,
+        "source_id": SOURCE_ID,
+        "run_id": RUN_ID,
+        "entries": list(entries),
+    }
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"discovery_reason": ""},
+        {"discovery_reason": None},
+        {"outcome_reason": None},
+        {"outcome_reason": "  "},
+        {"outcome": None, "outcome_reason": "orphan reason", "outcome_at": None},
+        {"ref": ""},
+        {"size_bytes": -5},
+    ],
+)
+def test_loading_enforces_recording_rules(overrides):
+    with pytest.raises(ManifestError):
+        Manifest.from_dict(_raw_manifest(_raw_entry(**overrides)))
+
+
+def test_loading_rejects_duplicate_refs():
+    with pytest.raises(ManifestError, match="duplicate"):
+        Manifest.from_dict(_raw_manifest(_raw_entry(), _raw_entry()))
+
+
+def test_loading_redacts_secrets_in_reasons():
+    fake_password = "fakepass-not-real-456"  # clearly fake, seeded for redaction
+    raw = _raw_manifest(
+        _raw_entry(outcome="failed", outcome_reason=f"dsn postgresql://u:{fake_password}@h/db")
+    )
+    loaded = Manifest.from_dict(raw)
+    assert fake_password not in loaded.get("a.sql").outcome_reason
+    assert fake_password not in loaded.to_json()
+
+
+def test_store_load_rejects_mismatched_ids(tmp_path):
+    object_store = LocalObjectStore(tmp_path)
+    other = Manifest(source_id="other-source", run_id="other-run")
+    object_store.put(ManifestStore.key(SOURCE_ID, RUN_ID), other.to_json().encode("utf-8"))
+    with pytest.raises(ManifestError, match="does not match"):
+        ManifestStore(object_store).load(SOURCE_ID, RUN_ID)
+
+
+def test_store_load_forwards_clock(tmp_path):
+    store = ManifestStore(LocalObjectStore(tmp_path))
+    m = _manifest()
+    m.discovered("a.sql", reason="listed")
+    store.save(m)
+    later = datetime(2026, 11, 1, tzinfo=UTC)
+    loaded = store.load(SOURCE_ID, RUN_ID, now=lambda: later)
+    assert loaded.fetched("a.sql", reason="matched include").outcome_at == later
+
+
+# End to end on a real fixture repo: walk, record, persist, reload, read.
+def test_end_to_end_on_java_fixture(tmp_path):
+    repo = Path(__file__).resolve().parents[2] / "fixtures" / "repos" / "java-sample"
+    m = Manifest(source_id="java-sample", run_id="e2e-1", now=lambda: FIXED_NOW)
+    files = sorted(p for p in repo.rglob("*") if p.is_file())
+    for p in files:
+        rel = p.relative_to(repo).as_posix()
+        m.discovered(rel, reason="listed by filesystem walk", size_bytes=p.stat().st_size)
+        if rel.startswith("target/"):
+            m.skipped(rel, reason="excluded: build output target/")
+        else:
+            m.fetched(rel, reason="matched java stack include")
+
+    store = ManifestStore(LocalObjectStore(tmp_path))
+    store.save(m)
+    loaded = store.load("java-sample", "e2e-1")
+
+    skipped = loaded.by_outcome(Outcome.SKIPPED)
+    assert skipped and all(e.ref.startswith("target/") for e in skipped)
+    assert all(e.outcome_reason == "excluded: build output target/" for e in skipped)
+    counts = loaded.counts()
+    assert counts["discovered"] == len(files)
+    assert counts["fetched"] + counts["skipped"] == len(files)
+    assert counts["unaccounted"] == 0
 
 
 @pytest.mark.parametrize("bad", ["../x", "a/b", ""])

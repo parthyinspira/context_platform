@@ -68,16 +68,30 @@ class ManifestEntry:
 
     @classmethod
     def from_dict(cls, data: dict) -> ManifestEntry:
+        """Rebuild an entry from stored JSON, enforcing the same rules as recording.
+
+        A file written by another writer, an older version or by hand must not
+        hand the validator an entry without a reason or with an unredacted secret.
+        """
+        ref = data.get("ref")
+        if not isinstance(ref, str) or not ref.strip():
+            raise ManifestError("stored entry has no ref")
+        size_bytes = data.get("size_bytes")
+        if size_bytes is not None and (not isinstance(size_bytes, int) or size_bytes < 0):
+            raise ManifestError(f"stored entry {ref!r} has an invalid size_bytes")
+        outcome = Outcome(data["outcome"]) if data.get("outcome") else None
+        if outcome is None and (data.get("outcome_reason") or data.get("outcome_at")):
+            raise ManifestError(f"stored entry {ref!r} has an outcome reason but no outcome")
+        if outcome is not None and not data.get("outcome_at"):
+            raise ManifestError(f"stored entry {ref!r} has an outcome but no outcome_at")
         return cls(
-            ref=data["ref"],
-            discovery_reason=data["discovery_reason"],
+            ref=ref,
+            discovery_reason=_clean_reason(data.get("discovery_reason")),
             discovered_at=datetime.fromisoformat(data["discovered_at"]),
-            size_bytes=data.get("size_bytes"),
-            outcome=Outcome(data["outcome"]) if data.get("outcome") else None,
-            outcome_reason=data.get("outcome_reason"),
-            outcome_at=(
-                datetime.fromisoformat(data["outcome_at"]) if data.get("outcome_at") else None
-            ),
+            size_bytes=size_bytes,
+            outcome=outcome,
+            outcome_reason=_clean_reason(data.get("outcome_reason")) if outcome else None,
+            outcome_at=datetime.fromisoformat(data["outcome_at"]) if outcome else None,
         )
 
 
@@ -198,6 +212,8 @@ class Manifest:
         manifest = cls(source_id=data["source_id"], run_id=data["run_id"], now=now)
         for raw in data["entries"]:
             entry = ManifestEntry.from_dict(raw)
+            if entry.ref in manifest._entries:
+                raise ManifestError(f"stored manifest has duplicate ref {entry.ref!r}")
             manifest._entries[entry.ref] = entry
         return manifest
 
@@ -221,6 +237,14 @@ class ManifestStore:
         self._store.put(key, manifest.to_json().encode("utf-8"))
         return key
 
-    def load(self, source_id: str, run_id: str) -> Manifest:
+    def load(
+        self, source_id: str, run_id: str, now: Callable[[], datetime] = _utcnow
+    ) -> Manifest:
         data = self._store.get(self.key(source_id, run_id))
-        return Manifest.from_json(data.decode("utf-8"))
+        manifest = Manifest.from_json(data.decode("utf-8"), now=now)
+        if manifest.source_id != source_id or manifest.run_id != run_id:
+            raise ManifestError(
+                f"stored manifest ({manifest.source_id}, {manifest.run_id}) does not match "
+                f"requested ({source_id}, {run_id})"
+            )
+        return manifest
