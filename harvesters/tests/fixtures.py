@@ -6,26 +6,59 @@ polluted by test state.
 """
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
 
-from harvesters.base import Chunk, Edge, Entity, Harvester, ObjectRef, RawObject
+from harvesters.base import (
+    Chunk,
+    ConnectionResult,
+    Edge,
+    Entity,
+    Harvester,
+    Profile,
+    RawObject,
+    ScopeNode,
+    ScopeTree,
+    ValidationReport,
+)
+from harvesters.framework import HarvestPlan
 from harvesters.registry import register_harvester
 
 
 class FixtureHarvester(Harvester):
     """A minimal, fully-implemented Harvester used to test the base contract."""
 
-    def discover(self, source: dict) -> Iterable[ObjectRef]:
-        return [ObjectRef(external_id="obj-1", path="obj-1.txt", size_bytes=10)]
+    def connect(self, source: dict) -> ConnectionResult:
+        return ConnectionResult(ok=True)
 
-    def fetch(self, source: dict, ref: ObjectRef, cursor: str | None) -> RawObject:
-        return RawObject(external_id=ref.external_id, content=b"hello", content_type="text/plain")
+    def discover(self, source: dict) -> ScopeTree:
+        return ScopeTree(
+            roots=[ScopeNode(id="obj-1", kind="file", name="obj-1.txt", size_hint=10)]
+        )
+
+    def profile(self, source: dict, scope: ScopeTree) -> Profile:
+        refs = scope.refs()
+        return Profile(object_count=len(refs), total_bytes=sum(r.size_bytes for r in refs))
+
+    def plan(self, profile: Profile) -> HarvestPlan:
+        return HarvestPlan()
+
+    def harvest(
+        self, source: dict, plan: HarvestPlan, cursor: str | None
+    ) -> Iterable[RawObject]:
+        for ref in self.discover(source).refs():
+            if plan.is_included(ref.path):
+                yield RawObject(
+                    external_id=ref.external_id, content=b"hello", content_type="text/plain"
+                )
 
     def normalize(self, raw: RawObject) -> list[Entity | Edge | Chunk]:
         return [
             Entity(type="Document", name=raw.external_id, external_id=raw.external_id),
             Chunk(entity_external_id=raw.external_id, text="hello"),
         ]
+
+    def validate(self, plan: HarvestPlan, manifest: list[dict[str, Any]]) -> ValidationReport:
+        return ValidationReport(status="PASS")
 
 
 @register_harvester("fixture-type-a")
@@ -39,7 +72,7 @@ class RegisteredHarvesterB(FixtureHarvester):
 
 
 class IncompleteHarvester(Harvester):
-    """Missing fetch/normalize on purpose, to test the ABC enforces the contract."""
+    """Missing several lifecycle methods on purpose, to test the ABC enforces the contract."""
 
-    def discover(self, source: dict) -> Iterable[ObjectRef]:
-        return []
+    def discover(self, source: dict) -> ScopeTree:
+        return ScopeTree()

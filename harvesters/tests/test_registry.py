@@ -1,6 +1,5 @@
 import pytest
 
-from harvesters.base import Harvester
 from harvesters.registry import UnknownSourceTypeError, get_harvester, register_harvester
 
 # Importing the fixtures module registers "fixture-type-a" and "fixture-type-b".
@@ -28,25 +27,11 @@ def test_unknown_type_raises_with_type_name():
 
 def test_duplicate_registration_rejected():
     @register_harvester("fixture-type-dup")
-    class First(Harvester):
-        def discover(self, source):
-            return []
-
-        def fetch(self, source, ref, cursor):
-            raise NotImplementedError
-
-        def normalize(self, raw):
-            return []
+    class First(fixtures.FixtureHarvester):
+        pass
 
     with pytest.raises(ValueError):
 
         @register_harvester("fixture-type-dup")
-        class Second(Harvester):
-            def discover(self, source):
-                return []
-
-            def fetch(self, source, ref, cursor):
-                raise NotImplementedError
-
-            def normalize(self, raw):
-                return []
+        class Second(fixtures.FixtureHarvester):
+            pass
