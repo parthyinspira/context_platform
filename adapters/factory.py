@@ -6,6 +6,8 @@ concrete implementation directly, so swapping `.env` selects a different backend
 """
 from typing import Any
 
+from adapters.embedding.base import EmbeddingProvider
+from adapters.embedding.http_local import HTTPEmbeddingProvider
 from adapters.event_bus.base import EventBus
 from adapters.event_bus.postgres_outbox import PostgresOutboxEventBus
 from adapters.object_store.base import ObjectStore
@@ -35,3 +37,12 @@ def get_event_bus(
     if kind == "postgres_outbox":
         return PostgresOutboxEventBus(connection_factory)
     raise ValueError(f"unknown EVENT_BUS: {kind}")
+
+
+def get_embedding_provider(
+    secrets: SecretStore, transport: Any, embedding_provider: str | None = None
+) -> EmbeddingProvider:
+    kind = embedding_provider or secrets.get("EMBEDDING_PROVIDER") or "local"
+    if kind == "local":
+        return HTTPEmbeddingProvider(secrets, transport)
+    raise ValueError(f"unknown EMBEDDING_PROVIDER: {kind}")
