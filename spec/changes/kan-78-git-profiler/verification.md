@@ -9,7 +9,7 @@ Date: 2026-10-31   Commit: d969ffa (merge of main's KAN-79/KAN-80 into this bran
 | Lint (`ruff check harvesters/git`) | PASS — 0 errors |
 | Lint (`ruff check api scheduler adapters ontology harvesters harvest_validation`) | 1 pre-existing error in `api/tests` (import order), unrelated to this change — confirmed present on `main` by stashing this change and re-running the same command |
 | Tests (`python -m pytest harvesters -q`) | PASS — 115 passed (after merging KAN-79/KAN-80's new tests from `main`) |
-| Tests (`python -m pytest harvesters/git/tests -q`) | PASS — 19 passed, reconciled against KAN-79's YAML rules and KAN-80's `harvest_git` |
+| Tests (`python -m pytest harvesters/git/tests -q`) | PASS — 20 passed, reconciled against KAN-79's YAML rules and KAN-80's `harvest_git` |
 | docker compose up exercised | Not applicable — this change adds no container/service; harvester packages are imported by other services, not run standalone |
 | contract-check | No mismatches: no schema/ontology/MCP/adapter changes; harvester interface fully implemented (connect/discover/profile/plan/harvest real; normalize/validate explicitly deferred per the proposal's "Out of scope" with `NotImplementedError`); no cloud SDK imports outside `adapters/` |
 | secret-scan | No secrets found in `harvesters/git/`; `.env` untracked, only `.env.example` tracked |
