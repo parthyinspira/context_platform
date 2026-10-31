@@ -32,6 +32,9 @@ spec/changes/kan-101-compose-stack/
   verification.md    evidence per scenario, written in stage 3
 ```
 
+## Batch mode
+For speed, `spec/workflow/06-batch.md` and the `spec-batch` skill build a whole milestone (`docs/MILESTONES.md`) with one combined plan approval, per-story verification, one reviewer pass and one PR.
+
 ## Rules
 - No code before the plan is approved. No PR before verification is PASS. No merge before `APPROVE`.
 - Requirements use SHALL; every requirement has at least one scenario; every scenario has evidence in `verification.md`.
