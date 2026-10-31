@@ -1,0 +1,21 @@
+# Java stack rules (docs/HARVESTERS.md section 4, KAN-79).
+# Pull: build files, src/main/**/*.java, configs, SQL resources.
+# Skip: target/, *.jar, *.class, src/test (optional).
+stack: java
+include:
+  - "pom.xml"
+  - "build.gradle"
+  - "build.gradle.kts"
+  - "src/main/**/*.java"
+  - "*.properties"
+  - "*.yml"
+  - "*.yaml"
+  - "*.sql"
+exclude:
+  - "target/*"
+  - "*/target/*"
+  - "*.jar"
+  - "*.class"
+  - "src/test/*"
+  - "*/src/test/*"
+size_cap_bytes: 1048576

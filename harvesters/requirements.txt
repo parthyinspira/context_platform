@@ -1,4 +1,6 @@
 # harvesters framework: imports adapters/ (scanning, object_store, event_bus) and
 # harvest_validation/ from the repo root. psycopg is needed by harvesters/run.py (KAN-16)
-# to read/write harvest_runs and sources, matching scheduler/requirements.txt.
+# to read/write harvest_runs and sources, matching scheduler/requirements.txt. pyyaml is
+# used elsewhere in the harvesters framework.
 psycopg[binary]==3.2.3
+pyyaml==6.0.2
