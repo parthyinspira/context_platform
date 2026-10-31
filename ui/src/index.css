@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-canvas: #F7F8FA;
+  --bg-surface: #FFFFFF;
+  --border-subtle: #E3E6EB;
+  --text-primary: #14171F;
+  --text-secondary: #5B6270;
+  --accent: #4F46E5;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: Inter, sans-serif;
+}
+
+.app-shell {
+  display: flex;
+  height: 100%;
+}
+
+.nav-rail {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.nav-rail ul {
+  list-style: none;
+  margin: 0;
+  padding: 16px 0;
+}
+
+.nav-rail li {
+  padding: 8px 16px;
+  color: var(--text-secondary);
+}
+
+.nav-rail li[aria-current="page"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.top-bar-search {
+  flex: 1;
+  max-width: 480px;
+}
+
+.app-content {
+  padding: 24px;
+}
