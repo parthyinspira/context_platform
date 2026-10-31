@@ -1,6 +1,6 @@
 const NAV_ITEMS = ["Graph", "Sources", "Runs", "Agents", "Settings"];
 
-export function NavRail({ active = "Graph" }) {
+export function NavRail({ active = "Graph", onNavigate }) {
   return (
     <nav
       data-testid="nav-rail"
@@ -8,12 +8,15 @@ export function NavRail({ active = "Graph" }) {
     >
       <ul className="m-0 list-none py-4">
         {NAV_ITEMS.map((item) => (
-          <li
-            key={item}
-            aria-current={item === active ? "page" : undefined}
-            className="px-4 py-2 text-text-secondary aria-[current=page]:text-accent aria-[current=page]:font-semibold"
-          >
-            {item}
+          <li key={item} aria-current={item === active ? "page" : undefined}>
+            <button
+              type="button"
+              onClick={() => onNavigate?.(item)}
+              className="w-full px-4 py-2 text-left text-text-secondary aria-[current=page]:text-accent aria-[current=page]:font-semibold"
+              aria-current={item === active ? "page" : undefined}
+            >
+              {item}
+            </button>
           </li>
         ))}
       </ul>

@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from adapters.event_bus.base import EventBus
@@ -11,6 +12,16 @@ from app.db import get_connection_factory
 from app.schemas import SourceCreate, SourceOut, SourceUpdate
 
 app = FastAPI(title="context-platform-api")
+
+# Single-tenant hackathon stack: the `ui` container is served from a different
+# origin/port than this API, with no gateway in front of either. Permissive CORS
+# lets the browser call this API directly; revisit if a shared gateway is added.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def connection_factory_dependency() -> Any:
