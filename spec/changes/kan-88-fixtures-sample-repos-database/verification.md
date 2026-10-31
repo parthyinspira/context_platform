@@ -38,6 +38,12 @@ Date: 2026-10-31
 | 7. Sample Excel files | excel-fixture-present | PASS |
 | 8. All fixtures non-sensitive | secret-scan-clean | PASS |
 
+## Review fixes (round 1)
+- `story-reviewer` flagged that `openpyxl` (used by `scripts/generate_fixtures.py`) was not pinned in `scripts/requirements*.txt`, so a clean checkout/CI would fail on `import openpyxl`. Fixed: added `openpyxl==3.1.5` to `scripts/requirements-dev.txt`.
+- Nit: clarified with a code comment that `fixtures/repos/talend-sample/lib/talend-runtime.jar` is plain-text filler, not a real jar, since only its size/extension matter for the size-cap scenario.
+- Nit: added the missing `DOCUMENTS(data-retention-policy.md -> source_orders)` edge to `fixtures/EXPECTED.md` for consistency with `orders-faq.md`.
+- Re-ran `python -I -m pytest scripts/tests/test_generate_fixtures.py -q` after regenerating fixtures: 9/9 passed.
+
 ## Not verified
 - **AC 5 interpretation**: `fixtures/db/init.sql` is delivered as a SQL fixture file (schema + seed data), matching `docs/HARVESTERS.md`'s "fixture source (small sample repo, sample database, sample documents)" wording. It has not been loaded into a running, compose-wired Postgres container in this story — that wiring is explicitly out of scope (see `proposal.md`) and left to the harvester story that first needs a live sample database. The SQL was sanity-checked for syntax by inspection, not by executing it against a live Postgres instance (no running Postgres container was exercised in this session).
 - **Real `.docx`/`.pdf` fixtures**: only Markdown (`.md`) sample docs were generated, not `.docx`/`.pdf`, since no new dependency was added for that (kept the story fixtures-only, no new runtime deps). Documented as a gap in `proposal.md`; can be added in a follow-up if a later harvester story needs real binary document fixtures.

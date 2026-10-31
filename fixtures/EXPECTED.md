@@ -29,4 +29,4 @@ Reference for harvester and MCP tests asserting against `fixtures/`. Types per t
 
 ## docs
 - Entities: Document(data-retention-policy.md, sensitivity=restricted), Document(orders-faq.md, sensitivity=internal), Document(sample_report.xlsx)
-- Edges: DOCUMENTS(orders-faq.md -> source_orders)
+- Edges: DOCUMENTS(orders-faq.md -> source_orders), DOCUMENTS(data-retention-policy.md -> source_orders)

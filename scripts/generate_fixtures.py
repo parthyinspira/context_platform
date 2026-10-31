@@ -196,6 +196,8 @@ def _generate_talend_repo(root: Path) -> None:
         repo / "screenshots" / "load_orders.png",
         _deterministic_filler(1024 * 1024 + 1024, "FIXTURE-SCREENSHOT-DUMMY-"),
     )
+    # Plain-text filler, not a real jar/zip — only its size and extension matter for the
+    # size-cap / binary-skip scenario this fixture exercises.
     _write_bytes(
         repo / "lib" / "talend-runtime.jar",
         _deterministic_filler(1024 * 1024 + 2048, "FIXTURE-JAR-DUMMY-"),
@@ -383,7 +385,8 @@ def _generate_expected_md(root: Path) -> None:
         "## docs\n"
         "- Entities: Document(data-retention-policy.md, sensitivity=restricted), "
         "Document(orders-faq.md, sensitivity=internal), Document(sample_report.xlsx)\n"
-        "- Edges: DOCUMENTS(orders-faq.md -> source_orders)\n",
+        "- Edges: DOCUMENTS(orders-faq.md -> source_orders), "
+        "DOCUMENTS(data-retention-policy.md -> source_orders)\n",
     )
 
 
