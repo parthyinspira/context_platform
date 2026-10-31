@@ -7,6 +7,6 @@
 - [x] 5. Remove/replace `scripts/init-db/001-pgvector.sql` so the extension is created once, by the migration, not by both paths
 - [x] 6. Wire migration run into `docker-compose.yml` / README so a fresh `docker compose up` ends with schema applied (document the command if not automatic)
 - [x] 7. Run migration test: empty -> apply -> re-apply (no-op) -> rollback -> verify tables gone (scenario: fresh database, idempotent re-run, rollback)
-- [ ] 8. Update Confluence Contracts page to match the migrated schema (scenario: Confluence updated)
-- [ ] 9. Docs and contracts updated (spec/capabilities/postgres-schema.md, CLAUDE.md reviewed for accuracy)
+- [x] 8. Verify Confluence Contracts page (section 4.4 of Project Home) matches the migrated schema (scenario: Confluence updated) — already matches column-for-column; no edit needed
+- [x] 9. Docs and contracts reviewed for accuracy (CLAUDE.md "Postgres schema v0" already matches the migration; spec/capabilities/postgres-schema.md is applied from the delta at spec-archive, per spec/README.md)
 - [ ] 10. verification.md completed
