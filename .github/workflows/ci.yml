@@ -15,13 +15,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install ruff==0.7.4
-      - run: ruff check api scheduler adapters ontology harvesters --config pyproject.toml
+      - run: ruff check api scheduler adapters ontology harvesters harvest_validation --config pyproject.toml
 
   test-python:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [api, scheduler, adapters, ontology, harvesters]
+        package: [api, scheduler, adapters, ontology, harvesters, harvest_validation]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
