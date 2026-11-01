@@ -60,12 +60,14 @@ def health() -> dict[str, str]:
 from app.routes_discovery import router as discovery_router  # noqa: E402
 from app.routes_entity import router as entity_router  # noqa: E402
 from app.routes_graph import router as graph_router  # noqa: E402
+from app.routes_lineage import router as lineage_router  # noqa: E402
 from app.routes_runs import router as runs_router  # noqa: E402
 
 app.include_router(discovery_router, tags=["discovery"])
 app.include_router(runs_router, tags=["runs"])
 app.include_router(graph_router, tags=["graph"])
 app.include_router(entity_router, tags=["entity"])
+app.include_router(lineage_router, tags=["lineage"])
 
 
 @app.post("/sources", status_code=201, response_model=SourceOut)
