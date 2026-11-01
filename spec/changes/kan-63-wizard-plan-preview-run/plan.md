@@ -21,13 +21,13 @@ Out: a full rules editor UI (drag/drop, per-node overrides) — minimal is an ed
 - Step 5's "Run now" action SHALL call `POST /sources/{id}/runs` with the (possibly edited) plan and, on success, navigate to the run view with the returned run id. (scenario: Given a valid plan, When "Run now" is activated and the API returns a run id, Then the app navigates to the run view for that id; Given the API call fails, Then an error is shown and the wizard stays on step 5)
 
 ## Tasks
-- [ ] 1. `ui/src/api.js`: add `planSource(sourceId, selection)` and `createRun(sourceId, plan)` (tests: resolve with plan/run shapes)
-- [ ] 2. `ui/src/components/PlanSummaryCard.jsx` (tests: pulled/skipped groups, estimates, budget warnings rendered/absent)
-- [ ] 3. Editable include/exclude text-list control wired into wizard state (test: edited pattern appears in the run-creation call body)
-- [ ] 4. Step 5 "Run now" wiring + navigation to run view (tests: success navigates, failure shows error and stays)
+- [x] 1. `ui/src/api.js`: add `planSource(sourceId, selection)` and `createRun(sourceId, plan)` (tests: resolve with plan/run shapes)
+- [x] 2. `ui/src/components/PlanSummaryCard.jsx` (tests: pulled/skipped groups, estimates, budget warnings rendered/absent)
+- [x] 3. Editable include/exclude text-list control wired into wizard state (test: edited pattern appears in the run-creation call body)
+- [x] 4. Step 5 "Run now" wiring + navigation to run view (tests: success navigates, failure shows error and stays)
 
 ## Risks / not verifiable here
--
+- No generic "pulled vs. skipped bytes" split exists in the `Profile`/`PlanPreviewOut` shape the backend returns (only `counts_by_type` is generic across source types; the git-specific pull/skip byte split lives on `GitProfile`, not serialized by the API). `PlanSummaryCard` shows `counts_by_type` as "what will be pulled, by type" plus the plan's `include`/`exclude` patterns as what will be pulled vs. skipped by rule — a minimal, honest proxy for the literal AC wording, documented in the component itself.
 
 ## Approval
 Approved by: parthasarathy.venkatachalam (user approved spec-batch), 2026-10-31

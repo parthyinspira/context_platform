@@ -41,6 +41,30 @@ export async function discoverSource(sourceId) {
   return response.json();
 }
 
+export async function planSource(sourceId, body) {
+  const response = await fetch(`${API_BASE_URL}/sources/${sourceId}/plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`POST /sources/${sourceId}/plan failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function createRun(sourceId, plan) {
+  const response = await fetch(`${API_BASE_URL}/sources/${sourceId}/runs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  });
+  if (!response.ok) {
+    throw new Error(`POST /sources/${sourceId}/runs failed with ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function createSource(payload) {
   const response = await fetch(`${API_BASE_URL}/sources`, {
     method: "POST",

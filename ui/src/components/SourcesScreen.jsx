@@ -49,6 +49,7 @@ export function SourcesScreen({ onRunStarted }) {
           // user eventually leaves the wizard.
           loadSources();
         }}
+        onRunStarted={onRunStarted}
       />
     );
   }

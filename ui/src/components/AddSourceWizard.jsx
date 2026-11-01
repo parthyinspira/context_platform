@@ -3,7 +3,8 @@ import { Stepper } from "./Stepper.jsx";
 import { Skeleton } from "./Skeleton.jsx";
 import { ErrorBanner } from "./ErrorBanner.jsx";
 import { ScopeTree } from "./ScopeTree.jsx";
-import { createSource, discoverSource, testConnection } from "../api.js";
+import { PlanSummaryCard } from "./PlanSummaryCard.jsx";
+import { createRun, createSource, discoverSource, planSource, testConnection } from "../api.js";
 
 // Hackathon-minimal defaults for fields the wizard doesn't collect yet
 // (schedule/owner/sensitivity are required by POST /sources but out of
@@ -21,7 +22,7 @@ const SOURCE_TYPES = [
   { id: "tableau", label: "Tableau", enabled: false },
 ];
 
-const STEPS = [{ label: "Type" }, { label: "Connect" }, { label: "Discover" }];
+const STEPS = [{ label: "Type" }, { label: "Connect" }, { label: "Discover" }, { label: "Plan & run" }];
 
 function scopeNodeFromApi(node) {
   return {
@@ -73,7 +74,20 @@ function selectAllLeaves(nodes) {
   });
 }
 
-export function AddSourceWizard({ onSourceCreated, onCancel }) {
+function collectCheckedLeafIds(nodes) {
+  return nodes.flatMap((n) =>
+    n.children?.length ? collectCheckedLeafIds(n.children) : n.checked ? [n.id] : []
+  );
+}
+
+function parsePatternList(text) {
+  return text
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+export function AddSourceWizard({ onSourceCreated, onRunStarted, onCancel }) {
   const [step, setStep] = useState(0);
   const [type, setType] = useState(null);
   const [uri, setUri] = useState("");
@@ -87,6 +101,13 @@ export function AddSourceWizard({ onSourceCreated, onCancel }) {
   const [scopeState, setScopeState] = useState("idle"); // idle | loading | success | error
   const [scopeNodes, setScopeNodes] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRefs, setSelectedRefs] = useState(null);
+  const [planState, setPlanState] = useState("idle"); // idle | loading | success | error
+  const [planData, setPlanData] = useState(null);
+  const [includeText, setIncludeText] = useState("");
+  const [excludeText, setExcludeText] = useState("");
+  const [runSubmitting, setRunSubmitting] = useState(false);
+  const [runError, setRunError] = useState(null);
 
   function selectType(sourceType) {
     setType(sourceType);
@@ -164,6 +185,52 @@ export function AddSourceWizard({ onSourceCreated, onCancel }) {
   const visibleScopeNodes = filterTree(scopeNodes, searchQuery.trim().toLowerCase());
   const scopeTreeRenderState =
     scopeState === "success" && scopeNodes.length === 0 ? "empty" : scopeState;
+
+  function handleGoToPlan() {
+    const refs = collectCheckedLeafIds(scopeNodes);
+    setSelectedRefs(refs);
+    setStep(3);
+  }
+
+  useEffect(() => {
+    if (step !== 3 || !createdSource || selectedRefs === null) return;
+    let cancelled = false;
+    setPlanState("loading");
+    setRunError(null);
+    planSource(createdSource.id, { selected_refs: selectedRefs })
+      .then((data) => {
+        if (cancelled) return;
+        setPlanData(data);
+        setIncludeText((data.plan.include ?? []).join(", "));
+        setExcludeText((data.plan.exclude ?? []).join(", "));
+        setPlanState("success");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPlanState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, createdSource, selectedRefs]);
+
+  async function handleRunNow() {
+    setRunSubmitting(true);
+    setRunError(null);
+    try {
+      const run = await createRun(createdSource.id, {
+        include: parsePatternList(includeText),
+        exclude: parsePatternList(excludeText),
+        size_cap_bytes: planData.plan.size_cap_bytes,
+        budgets: planData.plan.budgets,
+      });
+      onRunStarted?.(run);
+    } catch {
+      setRunError("Could not start the run");
+    } finally {
+      setRunSubmitting(false);
+    }
+  }
 
   return (
     <div data-testid="add-source-wizard">
@@ -261,6 +328,67 @@ export function AddSourceWizard({ onSourceCreated, onCancel }) {
             nodes={visibleScopeNodes}
             onToggle={(node) => setScopeNodes((nodes) => toggleTree(nodes, node.id))}
           />
+          <button
+            type="button"
+            data-testid="discover-next-button"
+            disabled={scopeState !== "success"}
+            onClick={handleGoToPlan}
+          >
+            Next: plan
+          </button>
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div data-testid="wizard-step-plan">
+          <PlanSummaryCard
+            state={planState === "idle" ? "loading" : planState}
+            profile={planData?.profile}
+            plan={{ include: parsePatternList(includeText), exclude: parsePatternList(excludeText) }}
+            estimatedBytes={planData?.estimated_bytes}
+            estimatedFiles={planData?.estimated_files}
+            estimatedSeconds={planData?.estimated_seconds}
+            estimatedTokens={planData?.estimated_tokens}
+            budgetWarnings={planData?.budget_warnings}
+          />
+
+          {planState === "success" && (
+            <>
+              <label>
+                Include patterns (comma-separated)
+                <input
+                  data-testid="plan-include-input"
+                  type="text"
+                  value={includeText}
+                  onChange={(e) => setIncludeText(e.target.value)}
+                />
+              </label>
+              <label>
+                Exclude patterns (comma-separated)
+                <input
+                  data-testid="plan-exclude-input"
+                  type="text"
+                  value={excludeText}
+                  onChange={(e) => setExcludeText(e.target.value)}
+                />
+              </label>
+
+              {runError && <ErrorBanner message={runError} />}
+
+              <button
+                type="button"
+                data-testid="run-now-button"
+                disabled={runSubmitting}
+                onClick={handleRunNow}
+              >
+                Run now
+              </button>
+            </>
+          )}
+
           <button type="button" onClick={onCancel}>
             Cancel
           </button>
