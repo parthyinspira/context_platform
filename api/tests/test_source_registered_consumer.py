@@ -7,10 +7,11 @@ contract tests, so this exercises the outbox round trip without a live Postgres.
 import uuid
 from dataclasses import dataclass, field
 
-from adapters.event_bus.postgres_outbox import PostgresOutboxEventBus
-from adapters.tests.contract.fake_postgres import FakePostgresConnection
 from app.main import app, connection_factory_dependency, event_bus_dependency
 from fastapi.testclient import TestClient
+
+from adapters.event_bus.postgres_outbox import PostgresOutboxEventBus
+from adapters.tests.contract.fake_postgres import FakePostgresConnection
 
 VALID_PAYLOAD = {
     "type": "git_repo",
