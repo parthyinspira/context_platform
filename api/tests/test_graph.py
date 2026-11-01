@@ -2,7 +2,6 @@
 for `entities`/`edges`, same pattern as `test_sources.py`.
 """
 from dataclasses import dataclass, field
-from typing import Any
 
 import pytest
 from app.main import app, connection_factory_dependency
@@ -27,7 +26,10 @@ class FakeCursor:
                 idx += 1
             self._result = [r[:5] for r in rows]
             return
-        if sql_norm.startswith("SELECT id, src_entity_id, dst_entity_id, relation, confidence, source_id FROM edges"):
+        edges_select = (
+            "SELECT id, src_entity_id, dst_entity_id, relation, confidence, source_id FROM edges"
+        )
+        if sql_norm.startswith(edges_select):
             rows = list(self.conn.edges)
             idx = 0
             if "source_id = %s" in sql_norm:
@@ -46,8 +48,10 @@ class FakeCursor:
 
 @dataclass
 class FakeConnection:
-    entities: list[tuple] = field(default_factory=list)  # (id, type, name, source_id, props, tombstoned_at)
-    edges: list[tuple] = field(default_factory=list)  # (id, src, dst, relation, confidence, source_id)
+    # entities: (id, type, name, source_id, props, tombstoned_at)
+    entities: list[tuple] = field(default_factory=list)
+    # edges: (id, src, dst, relation, confidence, source_id)
+    edges: list[tuple] = field(default_factory=list)
     closed: bool = False
 
     def cursor(self) -> FakeCursor:

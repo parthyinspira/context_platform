@@ -1,1 +1,5 @@
-# no runtime dependencies
+# harvest_validation itself has no direct runtime dependencies, but importing it
+# transitively imports harvesters.base -> harvesters.git -> harvesters.framework.
+# stack_rules, which needs pyyaml (pre-existing gap, surfaced by running this
+# package's CI matrix leg in isolation; matches the pin in harvesters/requirements.txt).
+pyyaml==6.0.2
