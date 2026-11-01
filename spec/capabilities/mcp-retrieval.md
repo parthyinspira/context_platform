@@ -21,6 +21,13 @@ The service SHALL filter results by the caller's allowed sensitivity and source 
 - **When** `get_lineage(table, downstream, 3)` is called
 - **Then** the job and the dashboard are returned with their edges
 
+### Requirement: Related entity traversal
+`get_related` SHALL traverse `edges` up to a caller-supplied depth limit (default 3, max 10) via a recursive CTE, following outbound, inbound, or both edge directions. It SHALL return each reachable entity (excluding tombstoned) with the connecting relation label and a citation (source_link, harvested_at, sensitivity, confidence). An optional relation filter restricts which edge labels are followed.
+#### Scenario: two-hop traversal
+- **Given** entity A connected by DEPENDS_ON to B, and B connected by READS_FROM to C
+- **When** `get_related(A, depth=2)` is called
+- **Then** B and C are returned, each with their connecting relation and citation fields
+
 ### Requirement: Tombstones excluded
 Tombstoned entities SHALL NOT be returned.
 #### Scenario: deleted object
