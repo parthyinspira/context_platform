@@ -198,3 +198,128 @@ The `ui` service SHALL provide `Badge`, `DataTable`, `Stepper`, `ScopeTree`, `Me
 - **Given** a `Timeline` with `state="empty"` (no run started)
 - **When** it is rendered
 - **Then** an empty state with a message is shown instead of the stage list
+
+### Requirement: Add-source wizard type and connect steps
+The `ui` app SHALL provide an `AddSourceWizard`, reachable from an "Add source" entry point on the Sources screen, whose step 1 renders one tile per source type from `UI_DESIGN.md` 4.3 (Git, SQL, Upload, SharePoint, Snowflake, Tableau) with only Git selectable (the rest disabled, labelled "Coming soon"), and whose step 2 renders a credential form for the selected type (for Git: repository URL and a masked `type="password"` credentials-ref/token field) with a "Test connection" button calling `POST /sources/test-connection`. A secret value, once accepted by a successful test or source creation, SHALL never be re-displayed in plain text on re-render.
+
+#### Scenario: type tiles, only Git enabled
+- **Given** the wizard opens at step 1
+- **When** it renders
+- **Then** six tiles are shown and only Git is enabled; selecting Git advances to step 2
+
+#### Scenario: test connection success and error
+- **Given** the connect form is filled in
+- **When** "Test connection" is activated and the API returns `ok: true`
+- **Then** a success indicator is shown; given `ok: false, error` instead, an error indicator with that message is shown
+
+#### Scenario: test connection loading state
+- **Given** "Test connection" is in flight
+- **When** rendered
+- **Then** a loading indicator is shown instead of a stale result
+
+#### Scenario: secret never re-displayed
+- **Given** a successful test connection
+- **When** the step re-renders (e.g. navigating away and back)
+- **Then** the secret field shows masked/blank content, not the original value
+
+### Requirement: Add-source wizard discover scope-tree step
+Once a source exists, the wizard's discover step SHALL call `POST /sources/{id}/discover` and render the result with the existing `ScopeTree` component (name, kind, size per node, nested under parent), with checkbox selection whose checked state propagates from a parent to its children and back (unchecking a child unchecks an otherwise-fully-checked parent), a search input that filters to name matches and their ancestors, and a "select recommended" action that checks every leaf node.
+
+#### Scenario: scope tree renders with sizes
+- **Given** discover returns a tree with children
+- **When** the discover step renders
+- **Then** nested nodes with their sizes are shown via `ScopeTree`
+
+#### Scenario: checkbox propagation
+- **Given** a parent with two children
+- **When** the parent checkbox is toggled on
+- **Then** both children become checked; when one child is then unchecked, the parent becomes unchecked
+
+#### Scenario: search filters to matches and ancestors
+- **Given** a tree with a node named "billing-service"
+- **When** the user types "billing"
+- **Then** that node and its ancestors remain visible and non-matching siblings are hidden
+
+#### Scenario: select recommended
+- **Given** no nodes are checked
+- **When** "select recommended" is activated
+- **Then** every leaf node becomes checked
+
+### Requirement: Add-source wizard plan-preview and run step
+The wizard's plan step SHALL call `POST /sources/{id}/plan` with the discover-step selection and render a `PlanSummaryCard` showing pulled-by-type counts and the plan's `include`/`exclude` patterns, the response's byte/file/time/token estimates as labelled values, and a visible warning (icon + text) per entry in a non-empty `budget_warnings` list. The `include`/`exclude` patterns SHALL be editable as a text list before running, with edits sent in the `POST /sources/{id}/runs` plan body instead of the original. "Run now" SHALL call `POST /sources/{id}/runs` with that plan and, on success, hand the created run to the app's run-view navigation; on failure an error is shown and the wizard stays on this step.
+
+#### Scenario: plan summary shows pulled-by-type and patterns
+- **Given** a plan response with `counts_by_type` and an exclude pattern
+- **When** the plan step renders
+- **Then** the pulled-by-type groups and the exclude pattern are shown
+
+#### Scenario: estimates shown
+- **Given** a plan response with estimated bytes, files, time and tokens
+- **When** rendered
+- **Then** all four values are shown with labels
+
+#### Scenario: budget warnings
+- **Given** a non-empty `budget_warnings` list
+- **When** rendered
+- **Then** a warning is shown per entry; given an empty list, no warning is shown
+
+#### Scenario: edited patterns round-trip into the run
+- **Given** the user adds an exclude pattern
+- **When** "Run now" is activated
+- **Then** the run-creation request body's plan includes the edited pattern
+
+#### Scenario: run now navigates or shows an error
+- **Given** a valid plan
+- **When** "Run now" is activated and the API returns a run id
+- **Then** the app navigates to the run view for that id; given the API call fails instead, an error is shown and the wizard stays on this step
+
+### Requirement: Run view polls status and shows a stage timeline, log and budget meters
+`RunView` SHALL poll `GET /runs/{id}` on an interval while the run is non-terminal, rendering a `Timeline` whose stages map from `HarvestRunState` with manifest-summary counts shown alongside, a scrollable log list with one line per manifest entry (`ref`, `outcome`, `outcome_reason`), and a `Meter` for each of files/bytes/time/tokens using the plan's budgets as `max` and the manifest's current counts as `value` (a `Meter` whose budget is unset renders `empty`). A "Stop" button, visible only while the run is non-terminal, SHALL call `PATCH /runs/{id}/stop` and reflect the resulting terminal state. Once terminal, the view SHALL show that state and a next-step action: a link to the validation report for `PUBLISHED`/`QUARANTINED`/`PARTIAL`, or back to Sources for `FAILED`.
+
+#### Scenario: live stage and counts, polling stops at terminal state
+- **Given** a run in state HARVESTING with manifest counts
+- **When** `RunView` renders
+- **Then** the Timeline shows Harvesting as active and the counts are shown; once the run reaches PUBLISHED, polling stops and Published is marked done
+
+#### Scenario: log list
+- **Given** a manifest with three entries
+- **When** rendered
+- **Then** three log lines are shown in entry order
+
+#### Scenario: budget meters, empty when unset
+- **Given** a plan with `max_files` set and a manifest with a fetched count
+- **When** rendered
+- **Then** a files Meter shows value/max; given `max_tokens` is null, the tokens Meter renders empty
+
+#### Scenario: stop button
+- **Given** a run in state HARVESTING
+- **When** Stop is activated and the API succeeds
+- **Then** the view shows the run as Failed with "stopped by user"; given the run is already terminal, no Stop button is shown
+
+#### Scenario: terminal next steps
+- **Given** state PUBLISHED
+- **When** rendered
+- **Then** a "View validation report" link is shown; given state FAILED instead, a "Back to sources" action is shown
+
+### Requirement: Validation report screen
+The `ui` app SHALL provide a validation report screen, reachable from `RunView`'s "View validation report" action, that fetches `GET /runs/{id}/validation` and `GET /runs/{id}` (for `state`) and renders an overall `Badge` for the report's `status` (PASS/WARN/FAIL, using the existing success/warning/danger variant mapping), one row per entry in the report's `checks` list (name, message, counts as a key-value list, samples as a list or "none" when empty), a quarantine-explanation panel when the run's `state` is `QUARANTINED`, and — when `GET /runs/{id}/validation` returns 404 (no report yet) — an informative fallback using the run's `state` and `error` instead of a bare error screen.
+
+#### Scenario: status badge
+- **Given** a report with status "FAIL"
+- **When** the screen renders
+- **Then** the Badge shows the danger variant and "FAIL" text
+
+#### Scenario: checks with counts and samples
+- **Given** a report with two checks, one with samples and one without
+- **When** rendered
+- **Then** both checks are listed with their counts, and the one with no samples shows "none" rather than an empty block
+
+#### Scenario: quarantine explanation
+- **Given** state QUARANTINED
+- **When** rendered
+- **Then** the quarantine explanation panel is shown; given state PUBLISHED instead, it is not shown
+
+#### Scenario: 404 fallback
+- **Given** a 404 from the validation endpoint and a run with `state=FAILED, error="connect failed: ..."`
+- **When** rendered
+- **Then** that state and error are shown as the fallback content, not a generic error state
