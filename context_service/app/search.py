@@ -61,6 +61,9 @@ def hybrid_search(
 
     vec_ranks: dict[str, int] = {}
     try:
+        # Proxy-embedding: use the top keyword result's stored vector as the query vector.
+        # This avoids a round-trip to an embedding service in this story. Replace with a
+        # proper query embedding call (EmbeddingProvider.embed(q)) once KAN-32+ wires it up.
         if kw_ranks:
             top_chunk_id = min(kw_ranks, key=lambda k: kw_ranks[k])
             cur.execute("SELECT embedding FROM chunks WHERE id = %s", (top_chunk_id,))
