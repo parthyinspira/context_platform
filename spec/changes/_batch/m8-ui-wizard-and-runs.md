@@ -22,3 +22,19 @@ Branch: `m8-ui-wizard-and-runs`   Base: `main` (1fefb23)
 - "list/create sources" (part of KAN-58's AC) is already implemented from bundle B2 (KAN-7/8/9/10) — KAN-58 only documents/reuses it, no new code.
 
 Run `python scripts/spec_check.py spec/changes/kan-<n>-...` on each change folder below (missing "Approved by" expected pre-approval).
+
+## Build results (all 6 stories complete)
+
+- All 6 `plan.md`/`verification.md` pairs pass `spec_check.py --stage=verify`.
+- `python -m pytest api/tests -q` → 43 passed. `npm test` (ui/) → 90 passed.
+- `python -m pytest scheduler/tests harvesters harvest_validation -q` (pre-existing, unaffected) → 8 / 127 / 68 passed.
+
+## Bundle-wide checks (run once, per lite mode)
+
+- **contract-check**: one mismatch found and fixed — migration `0005_harvest_runs_report` added a `report JSONB` column to `harvest_runs` that `CLAUDE.md`'s Postgres schema v0 listing didn't mention; `CLAUDE.md` updated in the same branch. No other mismatches (ontology, harvester interface, adapters/cloud-SDK isolation, MCP, secrets all clean for this diff).
+- **secret-scan**: no secrets found. Only `.env.example` is tracked; no key/token/password-shaped literals in the diff outside test fixture placeholders (`"super-secret-token"`, `"dummy-token"`) which are deliberately never-real values asserted to never round-trip back to the UI.
+- **Docker/milestone check**: `docker compose up postgres migrate api scheduler ui` — all four services reached healthy. Found and fixed a real gap during this check: the `api` image didn't copy the `harvesters/` package or install the `git` CLI, so the container crashed on the new `routes_discovery.py` import chain (`ModuleNotFoundError: No module named 'harvesters'`); fixed in `api/Dockerfile`/`api/requirements.txt` (adds `harvesters/`, the `git` binary, `pyyaml`).
+- **Live browser walkthrough** (Playwright, headless Chromium, driving the real containerized stack — not mocks): Sources → Add source → select Git → enter `https://github.com/octocat/Hello-World.git` → Test connection (succeeded against the real GitHub remote) → Add source → scope tree discovered for real (`README`, 13 bytes) → Select recommended → Plan step (real estimates: 13 bytes, 1 file, 3 tokens) → Run now → Run view (timeline, 4 meters, Stop button) → Stop → FAILED state with "Back to sources". Zero browser console errors throughout.
+  - Separately verified the validation-report screen end to end by seeding a `PUBLISHED` run with a report via SQL (since no harvester populates that column today — documented gap): the "View validation report" link appeared, and the screen correctly rendered a WARN badge, both checks with their counts/samples, and "none" for the empty-sample check.
+  - Not demonstrated live: a harvest actually reaching `PUBLISHED`/`QUARANTINED` through the real pipeline (git harvester `normalize()`/`validate()` are pre-existing `NotImplementedError`s, called out repeatedly above) and the Stop button's effect on a genuinely in-flight container (no job-control mechanism exists).
+  - Visual polish: the reused shared components (`Stepper`, `ScopeTree`, `Timeline`, `Meter`, `Badge`) render with full token styling; the new wizard/plan/report chrome (buttons, labels, containers) is functionally correct but unstyled plain HTML — consistent with "minimal: implement only the acceptance criteria, no extras," but worth a follow-up polish pass before the real demo.
