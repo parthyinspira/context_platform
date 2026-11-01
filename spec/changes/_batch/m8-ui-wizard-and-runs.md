@@ -26,7 +26,7 @@ Run `python scripts/spec_check.py spec/changes/kan-<n>-...` on each change folde
 ## Build results (all 6 stories complete)
 
 - All 6 `plan.md`/`verification.md` pairs pass `spec_check.py --stage=verify`.
-- `python -m pytest api/tests -q` → 43 passed. `npm test` (ui/) → 90 passed.
+- `python -m pytest api/tests -q` → 43 passed. `npm test` (ui/) → 91 passed.
 - `python -m pytest scheduler/tests harvesters harvest_validation -q` (pre-existing, unaffected) → 8 / 127 / 68 passed.
 
 ## Bundle-wide checks (run once, per lite mode)
@@ -38,3 +38,13 @@ Run `python scripts/spec_check.py spec/changes/kan-<n>-...` on each change folde
   - Separately verified the validation-report screen end to end by seeding a `PUBLISHED` run with a report via SQL (since no harvester populates that column today — documented gap): the "View validation report" link appeared, and the screen correctly rendered a WARN badge, both checks with their counts/samples, and "none" for the empty-sample check.
   - Not demonstrated live: a harvest actually reaching `PUBLISHED`/`QUARANTINED` through the real pipeline (git harvester `normalize()`/`validate()` are pre-existing `NotImplementedError`s, called out repeatedly above) and the Stop button's effect on a genuinely in-flight container (no job-control mechanism exists).
   - Visual polish: the reused shared components (`Stepper`, `ScopeTree`, `Timeline`, `Meter`, `Badge`) render with full token styling; the new wizard/plan/report chrome (buttons, labels, containers) is functionally correct but unstyled plain HTML — consistent with "minimal: implement only the acceptance criteria, no extras," but worth a follow-up polish pass before the real demo.
+
+## Review (story-reviewer, fresh context, round 1)
+
+Verdict: CHANGES REQUESTED, one blocking finding — fixed, not re-reviewed (lite mode: two rounds max, fix applied directly since it was a single well-scoped, mechanical fix).
+
+- **[blocking, fixed]** Every new route in `routes_discovery.py`/`routes_runs.py`/`routes_graph.py` opened a Postgres connection via `connection_factory()` but never closed it, unlike every pre-existing route in `api/app/main.py` (which all use `try/finally: conn.close()`). Worst exposure: `RunView` polls `GET /runs/{id}` every 2s for the life of any non-terminal run. Fixed with the identical existing pattern; each affected fake-DB test now asserts `conn.closed is True` so a regression would be caught.
+- **[nit, fixed]** KAN-64's plan.md/verification.md said the bytes Meter shows a hardcoded `0`; the code actually wires it to the real `manifest_summary.fetched_bytes` (added by the same story's task 6) — docs corrected to match.
+- **[nit, fixed]** KAN-62's checkbox-propagation scenario only tested "check all children on parent click", not "uncheck one child unchecks the parent" (the other half of the same requirement's scenario) — test added.
+- Confirmed clean by the review: requirement traceability for all 6 stories, scope containment (no story did another's work), the `api/Dockerfile`/`api/requirements.txt` fix, the `CLAUDE.md` schema contract update, no cloud-SDK imports, no secrets, parameterized SQL throughout.
+- Full re-run after fixes: `python -m pytest api/tests -q` → 43 passed (now including the `conn.closed` assertions); `npm test` (ui/) → 91 passed.
