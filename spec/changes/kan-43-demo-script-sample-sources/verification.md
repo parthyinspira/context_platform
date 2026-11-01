@@ -1,5 +1,7 @@
 # KAN-43 Verification
 
+Status: PASS
+
 | AC | Scenario | Result | Evidence |
 |---|---|---|---|
 | 1. Non-sensitive fixtures | All fixture text files scanned for unlabeled real secrets | PASS | `test_demo_fixtures.py::test_no_real_secrets` passes (9/9 tests green); Talend fake secret is labeled `FAKE_API_KEY` with comment "clearly fake, fixture for redaction tests" |
