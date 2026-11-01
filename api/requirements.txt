@@ -1,3 +1,7 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 psycopg[binary]==3.2.3
+# Needed transitively: importing harvesters.base pulls in harvesters.git (the
+# registry's "import every known harvester package" pattern, see
+# harvesters/__init__.py), whose framework.stack_rules loads YAML rule files.
+pyyaml==6.0.2
