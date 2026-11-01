@@ -324,6 +324,34 @@ The wizard's plan step SHALL call `POST /sources/{id}/plan` with the discover-st
 - **When** rendered
 - **Then** a "View validation report" link is shown; given state FAILED instead, a "Back to sources" action is shown
 
+### Requirement: Graph canvas renders entities as a force-directed, filterable graph
+The `ui` app SHALL provide a `GraphCanvas` component (Cytoscape.js), rendered by a `GraphScreen` reachable from the nav rail's "Graph" item, that calls `GET /graph` and lays out the returned nodes/edges with Cytoscape's force-directed (`cose`) layout, colouring each node by its entity family and shaping it by its entity type per the family/type mapping in `ui/src/tokens.json` (driven by `UI_DESIGN.md` section 2's graph encoding table). The canvas SHALL support Cytoscape's default pan and zoom, click-to-select a node with neighbour highlighting (the tapped node's closed neighbourhood gets a `highlighted` style and all other elements get `dimmed`; tapping the background clears both), and explicit **Fit** (`cy.fit()`) and **Reset** (re-run the `cose` layout, fit, and clear any highlighting/dimming) controls. `GraphScreen` SHALL show the shared loading/empty/error states around the canvas while `GET /graph` is pending, fails, or returns no nodes.
+
+#### Scenario: force-directed layout
+- **Given** `GET /graph` returns nodes and edges
+- **When** `GraphCanvas` mounts
+- **Then** cytoscape initializes with `layout.name === "cose"`
+
+#### Scenario: colour by family, shape by type
+- **Given** a node of type `Repository`
+- **When** it is rendered
+- **Then** its style rule maps the `Repository` type's family to that family's colour token and the `Repository` type to its shape token
+
+#### Scenario: select highlights neighbourhood, background clears it
+- **Given** a rendered graph
+- **When** a node is tapped
+- **Then** its closed neighbourhood gets `highlighted` and the rest get `dimmed`; when the background is tapped instead, both classes are cleared
+
+#### Scenario: fit and reset
+- **Given** a rendered graph
+- **When** Fit is activated
+- **Then** `cy.fit()` runs; when Reset is activated instead, the layout re-runs, the view fits, and any highlighting/dimming clears
+
+#### Scenario: graph screen loading, empty and error states
+- **Given** `GET /graph` is pending, fails, or returns no nodes
+- **When** `GraphScreen` renders
+- **Then** the loading, error, or empty state is shown instead of the canvas, respectively
+
 ### Requirement: Validation report screen
 The `ui` app SHALL provide a validation report screen, reachable from `RunView`'s "View validation report" action, that fetches `GET /runs/{id}/validation` and `GET /runs/{id}` (for `state`) and renders an overall `Badge` for the report's `status` (PASS/WARN/FAIL, using the existing success/warning/danger variant mapping), one row per entry in the report's `checks` list (name, message, counts as a key-value list, samples as a list or "none" when empty), a quarantine-explanation panel when the run's `state` is `QUARANTINED`, and — when `GET /runs/{id}/validation` returns 404 (no report yet) — an informative fallback using the run's `state` and `error` instead of a bare error screen.
 
