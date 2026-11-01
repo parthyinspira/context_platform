@@ -4,6 +4,7 @@ import { TopBar } from "./components/TopBar.jsx";
 import { SourcesScreen } from "./components/SourcesScreen.jsx";
 import { RunView } from "./components/RunView.jsx";
 import { ValidationReportScreen } from "./components/ValidationReportScreen.jsx";
+import { GraphScreen } from "./components/GraphScreen.jsx";
 import { applyTheme } from "./theme.js";
 
 const NAV_TO_VIEW = {
@@ -45,7 +46,7 @@ export function App() {
           onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
         />
         <main className="p-6">
-          {view === "graph" && <p>Context Platform</p>}
+          {view === "graph" && <GraphScreen />}
           {view === "sources" && <SourcesScreen onRunStarted={handleRunStarted} />}
           {view === "run" && activeRun && (
             <RunView
