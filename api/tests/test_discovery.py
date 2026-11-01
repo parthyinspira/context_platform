@@ -3,13 +3,11 @@ POST /sources/{id}/plan (KAN-58). No live Postgres: DB access is overridden with
 an in-memory fake, same pattern as `test_sources.py`.
 """
 from dataclasses import dataclass, field
-from typing import Any
 
+import fixtures_harvesters  # noqa: F401 - registers api-test-* harvester types
 import pytest
 from app.main import app, connection_factory_dependency
 from fastapi.testclient import TestClient
-
-import fixtures_harvesters  # noqa: F401 - registers api-test-* harvester types
 
 
 @dataclass
