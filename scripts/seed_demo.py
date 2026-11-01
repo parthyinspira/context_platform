@@ -102,10 +102,14 @@ def _upsert_edge(
         """
         INSERT INTO edges (id, src_entity_id, dst_entity_id, relation, confidence, source_id, ontology_version)
         VALUES (gen_random_uuid(), %s::uuid, %s::uuid, %s, %s, %s::uuid, %s)
-        ON CONFLICT DO NOTHING
         """,
         (src_id, dst_id, edge.relation, edge.confidence, source_id, _ONTOLOGY),
     )
+
+
+def _delete_source_chunks(conn: psycopg.Connection, source_id: str) -> None:
+    """Delete all chunks for a source before re-seeding (makes the seed idempotent)."""
+    conn.execute("DELETE FROM chunks WHERE source_id = %s::uuid", (source_id,))
 
 
 def _insert_chunk(
@@ -248,7 +252,8 @@ def seed(fixtures_dir: Path, database_url: str) -> None:
             print(f"  lineage source: {lineage_source_id}")
             print(f"  docs source:    {docs_source_id}")
 
-            # 3. Seed lineage chain entities and edges.
+            # 3. Seed lineage chain entities and edges (delete edges first for idempotency;
+            #    entities are upserted idempotently by ON CONFLICT).
             print("Upserting lineage chain entities ...")
             entity_id_map: dict[str, str] = {}
             for entity in _lineage_entities(lineage_source_id):
@@ -256,12 +261,13 @@ def seed(fixtures_dir: Path, database_url: str) -> None:
                 entity_id_map[entity.external_id] = db_id
                 print(f"  {entity.type} {entity.name!r} -> {db_id}")
 
-            print("Upserting lineage chain edges ...")
+            print("Deleting and re-inserting lineage chain edges ...")
+            conn.execute("DELETE FROM edges WHERE source_id = %s::uuid", (lineage_source_id,))
             for edge in _lineage_edges(lineage_source_id):
                 _upsert_edge(conn, lineage_source_id, edge, entity_id_map)
                 print(f"  {edge.relation}: {edge.src_external_id} -> {edge.dst_external_id}")
 
-            # 4. Run DocumentHarvester for policy/FAQ docs.
+            # 4. Run DocumentHarvester for policy/FAQ docs (single pass; delete chunks first).
             print("Running DocumentHarvester for fixture docs ...")
             harvester = DocumentHarvester()
             source_dict = {"uri": str(docs_dir)}
@@ -273,10 +279,11 @@ def seed(fixtures_dir: Path, database_url: str) -> None:
             profile = harvester.profile(source_dict, scope)
             plan = harvester.plan(profile)
 
+            _delete_source_chunks(conn, docs_source_id)
             doc_entity_id_map: dict[str, str] = {}
+            doc_chunks: list[Chunk] = []
             for raw in harvester.harvest(source_dict, plan, cursor=None):
-                normalized = harvester.normalize(raw)
-                for item in normalized:
+                for item in harvester.normalize(raw):
                     if isinstance(item, Entity):
                         item_with_source = Entity(
                             type=item.type,
@@ -289,13 +296,12 @@ def seed(fixtures_dir: Path, database_url: str) -> None:
                         db_id = _upsert_entity(conn, docs_source_id, item_with_source)
                         doc_entity_id_map[item.external_id] = db_id
                         print(f"  Document {item.name!r} (sensitivity={item.props.get('sensitivity')}) -> {db_id}")
+                    elif isinstance(item, Chunk):
+                        doc_chunks.append(item)
 
-            for raw in harvester.harvest(source_dict, plan, cursor=None):
-                normalized = harvester.normalize(raw)
-                for item in normalized:
-                    if isinstance(item, Chunk):
-                        _insert_chunk(conn, docs_source_id, item, doc_entity_id_map)
-                        print(f"  Chunk for {item.entity_external_id!r}: {item.text[:60]!r}...")
+            for chunk in doc_chunks:
+                _insert_chunk(conn, docs_source_id, chunk, doc_entity_id_map)
+                print(f"  Chunk for {chunk.entity_external_id!r}: {chunk.text[:60]!r}...")
 
         print("\nSeed complete.")
         print(f"  Lineage entities: {len(entity_id_map)}")
