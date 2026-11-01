@@ -171,12 +171,10 @@ def test_get_related_citation_fields_present(db: FakeConnection) -> None:
     assert "relation" in row
 
 
-def test_get_related_no_edges_returns_empty(db: FakeConnection) -> None:
-    result = get_related(db, entity_id="e3", depth=3)
-    # e3 has no outbound edges and no inbound from perspective of e3 as start
-    # With direction="both", e2->e3 makes e2 a neighbor
-    ids = {r["entity_id"] for r in result}
-    assert "e1" not in ids or True  # just ensure no crash
+def test_get_related_no_outbound_edges_returns_empty(db: FakeConnection) -> None:
+    # e3 has no outbound edges; direction="out" should return nothing
+    result = get_related(db, entity_id="e3", depth=3, direction="out")
+    assert result == []
 
 
 def test_get_related_nonexistent_entity_returns_empty(db: FakeConnection) -> None:
