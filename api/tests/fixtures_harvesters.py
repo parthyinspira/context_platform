@@ -3,18 +3,14 @@
 """
 from __future__ import annotations
 
-from typing import Any, Iterable
-
 from harvesters.base import (
     ConnectionResult,
     Profile,
-    RawObject,
     ScopeNode,
     ScopeTree,
 )
 from harvesters.framework import Budgets, HarvestPlan
 from harvesters.registry import register_harvester
-
 from harvesters.tests.fixtures import FixtureHarvester
 
 

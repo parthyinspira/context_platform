@@ -118,9 +118,12 @@ def test_get_run_sums_fetched_bytes_and_lists_log_entries(client, conn) -> None:
     run_id = client.post("/sources/src-1/runs", json=VALID_PLAN).json()["id"]
     conn.runs[run_id]["manifest"] = {
         "entries": [
-            {"ref": "a.py", "outcome": "fetched", "size_bytes": 100, "outcome_reason": "fetched ok"},
-            {"ref": "b.py", "outcome": "fetched", "size_bytes": 50, "outcome_reason": "fetched ok"},
-            {"ref": "c.py", "outcome": "skipped", "size_bytes": 10, "outcome_reason": "excluded"},
+            {"ref": "a.py", "outcome": "fetched", "size_bytes": 100,
+             "outcome_reason": "fetched ok"},
+            {"ref": "b.py", "outcome": "fetched", "size_bytes": 50,
+             "outcome_reason": "fetched ok"},
+            {"ref": "c.py", "outcome": "skipped", "size_bytes": 10,
+             "outcome_reason": "excluded"},
         ]
     }
 
