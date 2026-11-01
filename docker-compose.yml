@@ -90,6 +90,20 @@ services:
     volumes:
       - embeddings-data:/root/.ollama
 
+  mcp:
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://context:change-me@postgres:5432/context}
+    ports:
+      - "${MCP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
 volumes:
   pgdata:
   embeddings-data:
