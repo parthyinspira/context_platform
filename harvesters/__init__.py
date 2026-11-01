@@ -9,3 +9,4 @@ registration happens on `import harvesters`.
 from __future__ import annotations
 
 import harvesters.git  # noqa: F401  (registers GitHarvester for source type "git")
+import harvesters.document  # noqa: F401  (registers DocumentHarvester for source type "document")
