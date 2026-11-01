@@ -93,6 +93,14 @@ export async function stopRun(runId) {
   return response.json();
 }
 
+export async function getEntity(entityId) {
+  const response = await fetch(`${API_BASE_URL}/entities/${entityId}`);
+  if (!response.ok) {
+    throw new Error(`GET /entities/${entityId} failed with ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function getRunValidation(runId) {
   const response = await fetch(`${API_BASE_URL}/runs/${runId}/validation`);
   if (response.status === 404) {
