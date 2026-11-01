@@ -199,6 +199,29 @@ The `ui` service SHALL provide `Badge`, `DataTable`, `Stepper`, `ScopeTree`, `Me
 - **When** it is rendered
 - **Then** an empty state with a message is shown instead of the stage list
 
+### Requirement: Entity card with citations (graph inspector)
+The `api` service SHALL provide `GET /entities/{id}` returning the entity's `props`, its edges grouped by `relation` (each with the neighbour entity and direction `out`/`in`), the owning source's `owner` and `uri` (used for "open in source"), and a `citations` list — one per chunk on the entity — each with the source's `uri`, the chunk's `harvested_at`, and a best-effort `run_id` (the most recent `harvest_runs` row for the source at or before `harvested_at`, or `null` if no run matches). Tombstoned entities SHALL 404. The `ui` service SHALL provide an `EntityCard` component, matching `UI_DESIGN.md` 4.1's inspector, accepting a `state` of `"empty" | "loading" | "error" | "success"` that renders properties, edges grouped by relation, a citation per citation (source link, `harvested_at`, run id), the owner and an "open in source" link.
+
+#### Scenario: entity detail grouped and cited
+- **Given** an entity with two edges (one outgoing DEPENDS_ON, one incoming CONTAINS) and one chunk
+- **When** `GET /entities/{id}` is called
+- **Then** `edges_by_relation` has one entry per relation and `citations` has one entry with `source_link`, `harvested_at` and `run_id`
+
+#### Scenario: tombstoned entity 404s
+- **Given** a tombstoned entity id
+- **When** `GET /entities/{id}` is called
+- **Then** the response is 404
+
+#### Scenario: entity card success
+- **Given** an `EntityCard` with `state="success"` and entity data with props, grouped edges, citations and an owner
+- **When** it is rendered
+- **Then** all of these appear and the "open in source" link's `href` is the source uri
+
+#### Scenario: entity card loading, error, empty
+- **Given** an `EntityCard` with `state="loading"`, `"error"` or `"empty"`
+- **When** it is rendered
+- **Then** the shared `Skeleton`, `ErrorBanner` or `EmptyState` is shown instead of entity content
+
 ### Requirement: Add-source wizard type and connect steps
 The `ui` app SHALL provide an `AddSourceWizard`, reachable from an "Add source" entry point on the Sources screen, whose step 1 renders one tile per source type from `UI_DESIGN.md` 4.3 (Git, SQL, Upload, SharePoint, Snowflake, Tableau) with only Git selectable (the rest disabled, labelled "Coming soon"), and whose step 2 renders a credential form for the selected type (for Git: repository URL and a masked `type="password"` credentials-ref/token field) with a "Test connection" button calling `POST /sources/test-connection`. A secret value, once accepted by a successful test or source creation, SHALL never be re-displayed in plain text on re-render.
 

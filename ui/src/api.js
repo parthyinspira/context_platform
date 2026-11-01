@@ -93,6 +93,14 @@ export async function stopRun(runId) {
   return response.json();
 }
 
+export async function getEntity(entityId) {
+  const response = await fetch(`${API_BASE_URL}/entities/${entityId}`);
+  if (!response.ok) {
+    throw new Error(`GET /entities/${entityId} failed with ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function getGraph() {
   const response = await fetch(`${API_BASE_URL}/graph`);
   if (!response.ok) {
