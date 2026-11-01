@@ -3,6 +3,7 @@ import { NavRail } from "./components/NavRail.jsx";
 import { TopBar } from "./components/TopBar.jsx";
 import { SourcesScreen } from "./components/SourcesScreen.jsx";
 import { RunView } from "./components/RunView.jsx";
+import { ValidationReportScreen } from "./components/ValidationReportScreen.jsx";
 import { applyTheme } from "./theme.js";
 
 const NAV_TO_VIEW = {
@@ -17,6 +18,7 @@ export function App() {
   const [theme, setTheme] = useState("light");
   const [view, setView] = useState("graph");
   const [activeRun, setActiveRun] = useState(null);
+  const [activeValidationRunId, setActiveValidationRunId] = useState(null);
 
   useEffect(() => {
     applyTheme(theme);
@@ -31,7 +33,8 @@ export function App() {
     setView("run");
   }
 
-  const activeNavItem = view === "sources" || view === "run" ? "Sources" : "Graph";
+  const activeNavItem =
+    view === "sources" || view === "run" || view === "validation" ? "Sources" : "Graph";
 
   return (
     <div className="flex h-full bg-bg-canvas text-text-primary">
@@ -44,7 +47,22 @@ export function App() {
         <main className="p-6">
           {view === "graph" && <p>Context Platform</p>}
           {view === "sources" && <SourcesScreen onRunStarted={handleRunStarted} />}
-          {view === "run" && activeRun && <RunView run={activeRun} />}
+          {view === "run" && activeRun && (
+            <RunView
+              run={activeRun}
+              onViewValidationReport={(runId) => {
+                setActiveValidationRunId(runId);
+                setView("validation");
+              }}
+              onBackToSources={() => setView("sources")}
+            />
+          )}
+          {view === "validation" && activeValidationRunId && (
+            <ValidationReportScreen
+              runId={activeValidationRunId}
+              onBack={() => setView("run")}
+            />
+          )}
         </main>
       </div>
     </div>

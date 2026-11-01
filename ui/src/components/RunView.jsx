@@ -46,7 +46,7 @@ function meterProps(budgetValue, value) {
     : { state: "success", value, max: budgetValue };
 }
 
-export function RunView({ run }) {
+export function RunView({ run, onViewValidationReport, onBackToSources }) {
   const [detail, setDetail] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -144,13 +144,17 @@ export function RunView({ run }) {
       {isTerminal && (
         <div data-testid="run-next-steps">
           {REPORT_STATES.includes(detail.state) ? (
-            <a data-testid="view-validation-report-link" href={`#/runs/${detail.id}/validation`}>
+            <button
+              type="button"
+              data-testid="view-validation-report-link"
+              onClick={() => onViewValidationReport?.(detail.id)}
+            >
               View validation report
-            </a>
+            </button>
           ) : (
-            <a data-testid="back-to-sources-link" href="#/sources">
+            <button type="button" data-testid="back-to-sources-link" onClick={onBackToSources}>
               Back to sources
-            </a>
+            </button>
           )}
         </div>
       )}

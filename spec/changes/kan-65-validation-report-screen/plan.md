@@ -18,10 +18,11 @@ Out: fixing the pre-existing gap where a real harvester run never populates per-
 - When `GET /runs/{id}/validation` returns 404 (no `report` yet), the screen SHALL show an informative fallback using the run's `state` and `error` instead of a bare error screen. (scenario: Given a 404 from the validation endpoint and a run with `state=FAILED, error="connect failed: ..."`, When rendered, Then that state and error are shown as the fallback content, not a generic error state)
 
 ## Tasks
-- [ ] 1. `ui/src/api.js`: add `getRunValidation(runId)` (tests: resolves with report shape, rejects/404 case surfaced distinctly)
-- [ ] 2. `ui/src/components/ValidationReport.jsx`: overall Badge + per-check list (tests: badge variant per status, check rows with counts/samples, "none" for empty samples)
-- [ ] 3. Quarantine explanation panel (tests: shown for QUARANTINED, hidden otherwise)
-- [ ] 4. 404 fallback panel using run state/error (test: renders fallback content)
+- [x] 1. `ui/src/api.js`: add `getRunValidation(runId)` (404 resolves to `null`, other failures reject) (tests: via `ValidationReportScreen.test.jsx`)
+- [x] 2. `ui/src/components/ValidationReportScreen.jsx`: overall Badge + per-check list (tests: badge variant per status, check rows with counts/samples, "none" for empty samples)
+- [x] 3. Quarantine explanation panel (tests: shown for QUARANTINED, hidden otherwise)
+- [x] 4. 404 fallback panel using run state/error (test: renders fallback content)
+- [x] 5. Wire into `RunView`'s "View validation report" link and `App.jsx` navigation (test: `App.navigation.test.jsx` click-through and back)
 
 ## Risks / not verifiable here
 - Per KAN-58's plan: no harvester today populates `harvest_runs.report` with real counts/samples (the `Harvester.validate()` contract only returns `status`/`checks: dict[str,str]`/`errors`). This screen is verified against a seeded/mocked report payload; a live demo end-to-end report depends on a future story populating that column from a real validate() call.
