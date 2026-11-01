@@ -48,12 +48,43 @@ function buildStyle() {
     { selector: "edge", style: { "curve-style": "bezier", "target-arrow-shape": "triangle" } },
     { selector: ".highlighted", style: { "border-width": 3, "border-color": tokens.light.accent } },
     { selector: ".dimmed", style: { opacity: 0.2 } },
+    {
+      selector: ".agent-retrieved",
+      style: {
+        "border-width": 4,
+        "border-color": "#F59E0B",
+        "border-style": "double",
+        label: "data(traceOrder)",
+        "font-size": 14,
+        "font-weight": "bold",
+        "text-background-color": "#F59E0B",
+        "text-background-opacity": 0.85,
+        "text-background-shape": "roundrectangle",
+        "text-background-padding": "2px",
+        "color": "#1a1a1a",
+      },
+    },
   ];
 }
 
-export function GraphCanvas({ nodes, edges }) {
+export function GraphCanvas({ nodes, edges, agentTrace = [] }) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
+
+  // Apply agent-retrieved overlay whenever the trace changes without rebuilding the graph.
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    cy.elements().removeClass("agent-retrieved");
+    cy.nodes().forEach((n) => { n.removeData("traceOrder"); });
+    agentTrace.forEach((nodeId, idx) => {
+      const el = cy.getElementById(nodeId);
+      if (el.length) {
+        el.addClass("agent-retrieved");
+        el.data("traceOrder", idx + 1);
+      }
+    });
+  }, [agentTrace]);
 
   useEffect(() => {
     const cy = cytoscape({

@@ -109,6 +109,18 @@ export async function getGraph() {
   return response.json();
 }
 
+export async function runAgentDemo(agentName, taskKey) {
+  const response = await fetch(`${API_BASE_URL}/agents/${agentName}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task_key: taskKey }),
+  });
+  if (!response.ok) {
+    throw new Error(`POST /agents/${agentName}/run failed with ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function getRunValidation(runId) {
   const response = await fetch(`${API_BASE_URL}/runs/${runId}/validation`);
   if (response.status === 404) {
