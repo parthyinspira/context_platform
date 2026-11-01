@@ -5,13 +5,14 @@ import { SourcesScreen } from "./components/SourcesScreen.jsx";
 import { RunView } from "./components/RunView.jsx";
 import { ValidationReportScreen } from "./components/ValidationReportScreen.jsx";
 import { GraphScreen } from "./components/GraphScreen.jsx";
+import { AgentsScreen } from "./components/AgentsScreen.jsx";
 import { applyTheme } from "./theme.js";
 
 const NAV_TO_VIEW = {
   Graph: "graph",
   Sources: "sources",
   Runs: "graph",
-  Agents: "graph",
+  Agents: "agents",
   Settings: "graph",
 };
 
@@ -35,7 +36,11 @@ export function App() {
   }
 
   const activeNavItem =
-    view === "sources" || view === "run" || view === "validation" ? "Sources" : "Graph";
+    view === "sources" || view === "run" || view === "validation"
+      ? "Sources"
+      : view === "agents"
+        ? "Agents"
+        : "Graph";
 
   return (
     <div className="flex h-full bg-bg-canvas text-text-primary">
@@ -47,6 +52,7 @@ export function App() {
         />
         <main className="p-6">
           {view === "graph" && <GraphScreen />}
+          {view === "agents" && <AgentsScreen />}
           {view === "sources" && <SourcesScreen onRunStarted={handleRunStarted} />}
           {view === "run" && activeRun && (
             <RunView

@@ -57,12 +57,14 @@ def health() -> dict[str, str]:
 
 # Imported after the routes/dependencies above so these router modules can
 # `from app.main import connection_factory_dependency` without a circular import.
+from app.routes_agents import router as agents_router  # noqa: E402
 from app.routes_discovery import router as discovery_router  # noqa: E402
 from app.routes_entity import router as entity_router  # noqa: E402
 from app.routes_graph import router as graph_router  # noqa: E402
 from app.routes_lineage import router as lineage_router  # noqa: E402
 from app.routes_runs import router as runs_router  # noqa: E402
 
+app.include_router(agents_router, tags=["agents"])
 app.include_router(discovery_router, tags=["discovery"])
 app.include_router(runs_router, tags=["runs"])
 app.include_router(graph_router, tags=["graph"])
