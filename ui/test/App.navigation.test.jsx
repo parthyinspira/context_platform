@@ -27,6 +27,15 @@ describe("App navigation", () => {
       source_id: SOURCE.id,
       status: "queued",
     });
+    vi.spyOn(api, "getRun").mockResolvedValue({
+      id: "run-1",
+      source_id: SOURCE.id,
+      state: "APPROVED",
+      plan: { include: [], exclude: [], size_cap_bytes: null, budgets: {} },
+      manifest_summary: { discovered: 0, fetched: 0, skipped: 0, failed: 0, fetched_bytes: 0 },
+      log_entries: [],
+      error: null,
+    });
 
     render(<App />);
 
@@ -35,7 +44,33 @@ describe("App navigation", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Run" }));
 
-    await waitFor(() => expect(screen.getByTestId("run-view")).toBeInTheDocument());
-    expect(screen.getByTestId("run-id")).toHaveTextContent("run-1");
+    expect(await screen.findByTestId("run-id")).toHaveTextContent("run-1");
+  });
+
+  it("navigates from a published run to its validation report and back", async () => {
+    vi.spyOn(api, "listSources").mockResolvedValue([SOURCE]);
+    vi.spyOn(api, "runSource").mockResolvedValue({ id: "run-1", source_id: SOURCE.id, status: "queued" });
+    vi.spyOn(api, "getRun").mockResolvedValue({
+      id: "run-1",
+      source_id: SOURCE.id,
+      state: "PUBLISHED",
+      plan: { include: [], exclude: [], size_cap_bytes: null, budgets: {} },
+      manifest_summary: { discovered: 0, fetched: 0, skipped: 0, failed: 0, fetched_bytes: 0 },
+      log_entries: [],
+      error: null,
+    });
+    vi.spyOn(api, "getRunValidation").mockResolvedValue({ status: "PASS", checks: [] });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Sources" }));
+    await screen.findByTestId("sources-table");
+    fireEvent.click(await screen.findByRole("button", { name: "Run" }));
+    await screen.findByTestId("run-id");
+
+    fireEvent.click(screen.getByTestId("view-validation-report-link"));
+    await screen.findByTestId("validation-report");
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByTestId("run-id")).toBeInTheDocument();
   });
 });

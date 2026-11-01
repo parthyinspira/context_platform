@@ -1,0 +1,1 @@
+ALTER TABLE harvest_runs DROP COLUMN IF EXISTS report;

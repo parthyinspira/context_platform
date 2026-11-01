@@ -63,7 +63,7 @@ class Harvester:
 - `entities(id, type, name, source_id, external_id, props jsonb, ontology_version, tombstoned_at)`
 - `edges(id, src_entity_id, dst_entity_id, relation, confidence, source_id, ontology_version)`
 - `chunks(id, entity_id, source_id, text, embedding vector, embedding_model, metadata jsonb, harvested_at)`
-- `harvest_runs(id, source_id, state, plan jsonb, manifest jsonb, error, started_at, updated_at)`
+- `harvest_runs(id, source_id, state, plan jsonb, manifest jsonb, report jsonb, error, started_at, updated_at)`
 - `proposed_changes(id, kind, payload jsonb, confidence, status, created_at)`
 
 ## Conventions
