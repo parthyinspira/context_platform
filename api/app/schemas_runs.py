@@ -25,6 +25,13 @@ class ManifestSummaryOut(BaseModel):
     fetched: int = 0
     skipped: int = 0
     failed: int = 0
+    fetched_bytes: int = 0
+
+
+class LogEntryOut(BaseModel):
+    ref: str
+    outcome: str | None = None
+    outcome_reason: str | None = None
 
 
 class RunDetailOut(BaseModel):
@@ -33,6 +40,7 @@ class RunDetailOut(BaseModel):
     state: str
     plan: dict[str, Any]
     manifest_summary: ManifestSummaryOut
+    log_entries: list[LogEntryOut] = []
     error: str | None = None
 
 

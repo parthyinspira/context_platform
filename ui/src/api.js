@@ -76,3 +76,30 @@ export async function createSource(payload) {
   }
   return response.json();
 }
+
+export async function getRun(runId) {
+  const response = await fetch(`${API_BASE_URL}/runs/${runId}`);
+  if (!response.ok) {
+    throw new Error(`GET /runs/${runId} failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function stopRun(runId) {
+  const response = await fetch(`${API_BASE_URL}/runs/${runId}/stop`, { method: "PATCH" });
+  if (!response.ok) {
+    throw new Error(`PATCH /runs/${runId}/stop failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function getRunValidation(runId) {
+  const response = await fetch(`${API_BASE_URL}/runs/${runId}/validation`);
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`GET /runs/${runId}/validation failed with ${response.status}`);
+  }
+  return response.json();
+}

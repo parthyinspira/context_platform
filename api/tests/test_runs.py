@@ -107,7 +107,27 @@ def test_create_run_then_get_returns_detail(client, conn) -> None:
     assert detail.status_code == 200
     body = detail.json()
     assert body["source_id"] == "src-1"
-    assert body["manifest_summary"] == {"discovered": 0, "fetched": 0, "skipped": 0, "failed": 0}
+    assert body["manifest_summary"] == {
+        "discovered": 0, "fetched": 0, "skipped": 0, "failed": 0, "fetched_bytes": 0,
+    }
+
+
+def test_get_run_sums_fetched_bytes_and_lists_log_entries(client, conn) -> None:
+    run_id = client.post("/sources/src-1/runs", json=VALID_PLAN).json()["id"]
+    conn.runs[run_id]["manifest"] = {
+        "entries": [
+            {"ref": "a.py", "outcome": "fetched", "size_bytes": 100, "outcome_reason": "fetched ok"},
+            {"ref": "b.py", "outcome": "fetched", "size_bytes": 50, "outcome_reason": "fetched ok"},
+            {"ref": "c.py", "outcome": "skipped", "size_bytes": 10, "outcome_reason": "excluded"},
+        ]
+    }
+
+    response = client.get(f"/runs/{run_id}")
+
+    body = response.json()
+    assert body["manifest_summary"]["fetched_bytes"] == 150
+    assert [e["ref"] for e in body["log_entries"]] == ["a.py", "b.py", "c.py"]
+    assert body["log_entries"][2]["outcome"] == "skipped"
 
 
 def test_create_run_unknown_source_returns_404(client) -> None:

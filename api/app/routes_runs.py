@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.main import connection_factory_dependency
 from app.schemas_runs import (
     TERMINAL_RUN_STATES,
+    LogEntryOut,
     ManifestSummaryOut,
     RunCreate,
     RunDetailOut,
@@ -39,11 +40,22 @@ def _manifest_summary(manifest: dict[str, Any] | None) -> ManifestSummaryOut:
         outcome = entry.get("outcome")
         if outcome == "fetched":
             summary.fetched += 1
+            summary.fetched_bytes += entry.get("size_bytes") or 0
         elif outcome == "skipped":
             summary.skipped += 1
         elif outcome == "failed":
             summary.failed += 1
     return summary
+
+
+def _log_entries(manifest: dict[str, Any] | None) -> list[LogEntryOut]:
+    entries = (manifest or {}).get("entries") or []
+    return [
+        LogEntryOut(
+            ref=e["ref"], outcome=e.get("outcome"), outcome_reason=e.get("outcome_reason")
+        )
+        for e in entries
+    ]
 
 
 def _load_run_row(connection_factory: Any, run_id: str) -> tuple | None:
@@ -65,6 +77,7 @@ def _run_detail_out(row: tuple) -> RunDetailOut:
         state=state,
         plan=plan or {},
         manifest_summary=_manifest_summary(manifest),
+        log_entries=_log_entries(manifest),
         error=error,
     )
 

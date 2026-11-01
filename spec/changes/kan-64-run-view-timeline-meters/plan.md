@@ -21,14 +21,16 @@ Out: a real push/streaming transport (polling only, per KAN-58's scope decision)
 - Once a run reaches a terminal state, `RunView` SHALL show that state and a next-step action: a link to the validation report (KAN-65) for PUBLISHED/QUARANTINED/PARTIAL, or back to Sources for FAILED. (scenario: Given state PUBLISHED, When rendered, Then a "View validation report" link is shown; Given state FAILED, Then a "Back to sources" action is shown instead)
 
 ## Tasks
-- [ ] 1. `ui/src/api.js`: add `getRun(runId)` and `stopRun(runId)` (tests: resolve with run shape / success)
-- [ ] 2. Rewrite `RunView.jsx` to poll and render `Timeline` + log list (tests: stage mapping, log lines, polling stops at terminal state)
-- [ ] 3. Add `Meter`s for the four budgets, including the `empty` case for an unset budget (test: value/max rendering + empty case)
-- [ ] 4. Stop button wiring (tests: visible while non-terminal, calls stopRun, hidden once terminal)
-- [ ] 5. Terminal-state next-step panel (tests: published→report link, failed→back-to-sources)
+- [x] 1. `ui/src/api.js`: add `getRun(runId)` and `stopRun(runId)` (tests: resolve with run shape / success)
+- [x] 2. Rewrite `RunView.jsx` to poll and render `Timeline` + log list (tests: stage mapping, log lines, polling stops at terminal state)
+- [x] 3. Add `Meter`s for the four budgets, including the `empty` case for an unset budget (test: value/max rendering + empty case)
+- [x] 4. Stop button wiring (tests: visible while non-terminal, calls stopRun, hidden once terminal)
+- [x] 5. Terminal-state next-step panel (tests: published→report link, failed→back-to-sources)
+- [x] 6. Extend KAN-58's `GET /runs/{id}` response with `manifest_summary.fetched_bytes` and a `log_entries` list (small additive fields the run-view genuinely needs; `api/app/schemas_runs.py`, `api/app/routes_runs.py`)
 
 ## Risks / not verifiable here
 - Stop is a best-effort API state change (`FAILED`, error "stopped by user"); this codebase has no job-control mechanism to actually interrupt a running harvester container, so "stopping" a real in-flight `docker compose run harvester` process is out of scope here (tracked as a pre-existing gap, not introduced by this story).
+- Only the files Meter has a real live value (`manifest_summary.fetched`); bytes/time/tokens Meters show `0` against their budget when a budget is set, because the harvester runner does not track live elapsed-time or token usage anywhere yet (a bigger change to `harvesters/run.py`'s execution loop, out of scope for a UI story). Documented rather than fabricated.
 
 ## Approval
 Approved by: parthasarathy.venkatachalam (user approved spec-batch), 2026-10-31
