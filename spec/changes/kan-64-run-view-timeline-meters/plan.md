@@ -30,7 +30,7 @@ Out: a real push/streaming transport (polling only, per KAN-58's scope decision)
 
 ## Risks / not verifiable here
 - Stop is a best-effort API state change (`FAILED`, error "stopped by user"); this codebase has no job-control mechanism to actually interrupt a running harvester container, so "stopping" a real in-flight `docker compose run harvester` process is out of scope here (tracked as a pre-existing gap, not introduced by this story).
-- Only the files Meter has a real live value (`manifest_summary.fetched`); bytes/time/tokens Meters show `0` against their budget when a budget is set, because the harvester runner does not track live elapsed-time or token usage anywhere yet (a bigger change to `harvesters/run.py`'s execution loop, out of scope for a UI story). Documented rather than fabricated.
+- The files and bytes Meters have real live values (`manifest_summary.fetched`/`fetched_bytes`, the latter added in task 6); the time/tokens Meters show `0` against their budget when a budget is set, because the harvester runner does not track live elapsed-time or token usage anywhere yet (a bigger change to `harvesters/run.py`'s execution loop, out of scope for a UI story). Documented rather than fabricated.
 
 ## Approval
 Approved by: parthasarathy.venkatachalam (user approved spec-batch), 2026-10-31

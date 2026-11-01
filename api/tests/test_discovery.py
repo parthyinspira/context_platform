@@ -33,6 +33,7 @@ class FakeCursor:
 @dataclass
 class FakeConnection:
     sources: dict[str, tuple] = field(default_factory=dict)
+    closed: bool = False
 
     def cursor(self) -> FakeCursor:
         return FakeCursor(self)
@@ -41,7 +42,7 @@ class FakeConnection:
         pass
 
     def close(self) -> None:
-        pass
+        self.closed = True
 
 
 @pytest.fixture
@@ -95,6 +96,7 @@ def test_discover_returns_scope_tree(client, conn) -> None:
     body = response.json()
     assert body["roots"][0]["id"] == "obj-1"
     assert body["roots"][0]["size_hint"] == 100
+    assert conn.closed is True
 
 
 def test_discover_unknown_source_returns_404(client) -> None:
@@ -116,6 +118,7 @@ def test_plan_returns_estimates_from_profile(client, conn) -> None:
     assert body["estimated_bytes"] == 100
     assert body["estimated_files"] == 1
     assert body["budget_warnings"] == []
+    assert conn.closed is True
 
 
 def test_plan_reports_budget_warning_when_estimate_exceeds_budget(client, conn) -> None:

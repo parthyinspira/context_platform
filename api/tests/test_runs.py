@@ -69,6 +69,7 @@ def _run_tuple(run: dict) -> tuple:
 class FakeConnection:
     sources: set[str] = field(default_factory=set)
     runs: dict[str, dict] = field(default_factory=dict)
+    closed: bool = False
 
     def cursor(self) -> FakeCursor:
         return FakeCursor(self)
@@ -77,7 +78,7 @@ class FakeConnection:
         pass
 
     def close(self) -> None:
-        pass
+        self.closed = True
 
 
 @pytest.fixture
@@ -110,6 +111,7 @@ def test_create_run_then_get_returns_detail(client, conn) -> None:
     assert body["manifest_summary"] == {
         "discovered": 0, "fetched": 0, "skipped": 0, "failed": 0, "fetched_bytes": 0,
     }
+    assert conn.closed is True
 
 
 def test_get_run_sums_fetched_bytes_and_lists_log_entries(client, conn) -> None:
@@ -130,9 +132,10 @@ def test_get_run_sums_fetched_bytes_and_lists_log_entries(client, conn) -> None:
     assert body["log_entries"][2]["outcome"] == "skipped"
 
 
-def test_create_run_unknown_source_returns_404(client) -> None:
+def test_create_run_unknown_source_returns_404(client, conn) -> None:
     response = client.post("/sources/missing/runs", json=VALID_PLAN)
     assert response.status_code == 404
+    assert conn.closed is True
 
 
 def test_stop_nonterminal_run_sets_failed(client, conn) -> None:
@@ -145,6 +148,7 @@ def test_stop_nonterminal_run_sets_failed(client, conn) -> None:
     body = response.json()
     assert body["state"] == "FAILED"
     assert body["error"] == "stopped by user"
+    assert conn.closed is True
 
 
 def test_stop_terminal_run_returns_409(client, conn) -> None:
@@ -154,6 +158,7 @@ def test_stop_terminal_run_returns_409(client, conn) -> None:
     response = client.patch(f"/runs/{run_id}/stop")
 
     assert response.status_code == 409
+    assert conn.closed is True
 
 
 def test_get_validation_report_present(client, conn) -> None:
@@ -172,6 +177,7 @@ def test_get_validation_report_present(client, conn) -> None:
     body = response.json()
     assert body["status"] == "WARN"
     assert body["checks"][0]["samples"] == ["a.txt"]
+    assert conn.closed is True
 
 
 def test_get_validation_report_missing_returns_404(client, conn) -> None:

@@ -48,9 +48,13 @@ class FakeCursor:
 class FakeConnection:
     entities: list[tuple] = field(default_factory=list)  # (id, type, name, source_id, props, tombstoned_at)
     edges: list[tuple] = field(default_factory=list)  # (id, src, dst, relation, confidence, source_id)
+    closed: bool = False
 
     def cursor(self) -> FakeCursor:
         return FakeCursor(self)
+
+    def close(self) -> None:
+        self.closed = True
 
 
 @pytest.fixture
@@ -76,12 +80,13 @@ def client(conn):
     app.dependency_overrides.clear()
 
 
-def test_graph_filters_by_source_and_type(client) -> None:
+def test_graph_filters_by_source_and_type(client, conn) -> None:
     response = client.get("/graph", params={"source_id": "src-1", "type": "Repository"})
 
     assert response.status_code == 200
     body = response.json()
     assert [n["id"] for n in body["nodes"]] == ["e1"]
+    assert conn.closed is True
 
 
 def test_graph_excludes_tombstoned_entities_and_their_edges(client) -> None:

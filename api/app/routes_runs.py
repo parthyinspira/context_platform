@@ -95,17 +95,20 @@ def create_run(
     request: RunCreate,
     connection_factory: Any = Depends(connection_factory_dependency),
 ) -> RunOut:
-    if not _source_exists(connection_factory, source_id):
-        raise HTTPException(status_code=404, detail="source not found")
     conn = connection_factory()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO harvest_runs (source_id, state, plan) VALUES (%s, 'APPROVED', %s) "
-        "RETURNING id, source_id, state",
-        (source_id, json.dumps(request.plan.model_dump())),
-    )
-    row = cur.fetchone()
-    conn.commit()
+    try:
+        if not _source_exists(connection_factory, source_id):
+            raise HTTPException(status_code=404, detail="source not found")
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO harvest_runs (source_id, state, plan) VALUES (%s, 'APPROVED', %s) "
+            "RETURNING id, source_id, state",
+            (source_id, json.dumps(request.plan.model_dump())),
+        )
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
     return RunOut(id=str(row[0]), source_id=str(row[1]), state=row[2])
 
 
@@ -120,7 +123,11 @@ def get_run(
     run_id: str,
     connection_factory: Any = Depends(connection_factory_dependency),
 ) -> RunDetailOut:
-    row = _load_run_row(connection_factory, run_id)
+    conn = connection_factory()
+    try:
+        row = _load_run_row(connection_factory, run_id)
+    finally:
+        conn.close()
     if row is None:
         raise HTTPException(status_code=404, detail="run not found")
     return _run_detail_out(row)
@@ -137,21 +144,24 @@ def stop_run(
     run_id: str,
     connection_factory: Any = Depends(connection_factory_dependency),
 ) -> RunDetailOut:
-    row = _load_run_row(connection_factory, run_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="run not found")
-    if row[2] in TERMINAL_RUN_STATES:
-        raise HTTPException(status_code=409, detail=f"run already {row[2]}")
-
     conn = connection_factory()
-    cur = conn.cursor()
-    cur.execute(
-        "UPDATE harvest_runs SET state = 'FAILED', error = %s, updated_at = now() "
-        "WHERE id = %s RETURNING id, source_id, state, plan, manifest, error, report",
-        ("stopped by user", run_id),
-    )
-    updated = cur.fetchone()
-    conn.commit()
+    try:
+        row = _load_run_row(connection_factory, run_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="run not found")
+        if row[2] in TERMINAL_RUN_STATES:
+            raise HTTPException(status_code=409, detail=f"run already {row[2]}")
+
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE harvest_runs SET state = 'FAILED', error = %s, updated_at = now() "
+            "WHERE id = %s RETURNING id, source_id, state, plan, manifest, error, report",
+            ("stopped by user", run_id),
+        )
+        updated = cur.fetchone()
+        conn.commit()
+    finally:
+        conn.close()
     return _run_detail_out(updated)
 
 
@@ -166,7 +176,11 @@ def get_run_validation(
     run_id: str,
     connection_factory: Any = Depends(connection_factory_dependency),
 ) -> ValidationReportOut:
-    row = _load_run_row(connection_factory, run_id)
+    conn = connection_factory()
+    try:
+        row = _load_run_row(connection_factory, run_id)
+    finally:
+        conn.close()
     if row is None:
         raise HTTPException(status_code=404, detail="run not found")
     report = row[6]

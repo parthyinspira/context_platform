@@ -141,7 +141,11 @@ def discover_source(
     source_id: str,
     connection_factory: Any = Depends(connection_factory_dependency),
 ) -> ScopeTreeOut:
-    source = _load_source(connection_factory, source_id)
+    conn = connection_factory()
+    try:
+        source = _load_source(connection_factory, source_id)
+    finally:
+        conn.close()
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
     harvester = _get_harvester_or_400(source["type"])
@@ -164,7 +168,11 @@ def plan_source(
     request: PlanRequest,
     connection_factory: Any = Depends(connection_factory_dependency),
 ) -> PlanPreviewOut:
-    source = _load_source(connection_factory, source_id)
+    conn = connection_factory()
+    try:
+        source = _load_source(connection_factory, source_id)
+    finally:
+        conn.close()
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
     harvester = _get_harvester_or_400(source["type"])

@@ -62,6 +62,18 @@ describe("AddSourceWizard discover step", () => {
     expect(screen.getByLabelText("billing-service/main.py")).toBeChecked();
   });
 
+  it("unchecking one child unchecks the parent", async () => {
+    render(<AddSourceWizard />);
+    await goToDiscoverStep();
+
+    fireEvent.click(screen.getByLabelText("billing-service"));
+    fireEvent.click(screen.getByLabelText("billing-service/README.md"));
+
+    expect(screen.getByLabelText("billing-service/README.md")).not.toBeChecked();
+    expect(screen.getByLabelText("billing-service/main.py")).toBeChecked();
+    expect(screen.getByLabelText("billing-service")).not.toBeChecked();
+  });
+
   it("filters the tree to matches and their ancestors when searching", async () => {
     render(<AddSourceWizard />);
     await goToDiscoverStep();

@@ -15,4 +15,4 @@ Backend support (small, additive extension to KAN-58's `GET /runs/{id}`): `api/t
 
 Supporting: `npm test` (ui/) → 84 passed (RunView.test.jsx fully rewritten: 7 tests). `python -m pytest api/tests -q` → 43 passed.
 
-Not verified: real-time polling cadence against a live backend (Vitest mocks `getRun`/`stopRun`, per lite mode — no Docker run per story); bytes/time/tokens Meters show 0 against budget rather than a real live value (see plan.md Risks — no live tracking exists upstream yet); a real `docker compose` end-to-end run reaching PUBLISHED is still blocked on git harvester `normalize()`/`validate()` (pre-existing, KAN-58's risk).
+Not verified: real-time polling cadence against a live backend (Vitest mocks `getRun`/`stopRun`, per lite mode — no Docker run per story); time/tokens Meters show 0 against budget rather than a real live value (see plan.md Risks — no live tracking exists upstream yet; files and bytes Meters do have real live values); a real `docker compose` end-to-end run reaching PUBLISHED is still blocked on git harvester `normalize()`/`validate()` (pre-existing, KAN-58's risk).
