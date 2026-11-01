@@ -41,6 +41,20 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  context-service:
+    build:
+      context: .
+      dockerfile: context_service/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://context:change-me@postgres:5432/context}
+    ports:
+      - "${CONTEXT_SERVICE_PORT:-8002}:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   scheduler:
     build:
       context: .

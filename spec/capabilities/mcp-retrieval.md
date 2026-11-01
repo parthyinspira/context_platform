@@ -1,5 +1,12 @@
 # Capability: retrieval MCP
 
+### Requirement: Hybrid search
+The service SHALL combine keyword (PostgreSQL tsvector) and vector (pgvector cosine) rankings via Reciprocal Rank Fusion (RRF, k=60). Callers MAY filter by `source_ids`, `entity_types`, and `sensitivities`.
+#### Scenario: hybrid search with metadata filter
+- **Given** indexed chunks with sensitivity "public" and "restricted"
+- **When** `GET /search?q=...&sensitivities=public` is called
+- **Then** only public-source chunks are returned, each with source_link, harvested_at, sensitivity and score
+
 ### Requirement: Cited results
 Every retrieval result SHALL include source link, `harvested_at` and `sensitivity`.
 #### Scenario: search
