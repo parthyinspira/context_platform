@@ -9,72 +9,68 @@ flowchart TD
     subgraph Sources
         G[Git repos]
         D[Doc sites]
-        U[Uploads - GCS]
-        X[Later: Snowflake, Tableau, Salesforce, SharePoint, Confluence]
+        U[Uploads GCS]
+        X[Future: Snowflake / Tableau / Confluence]
     end
 
-    subgraph UI["UI (React, port 3000)"]
-        NAV[NavRail: Graph · Pipelines · Sources · Agents · Chat · MCP]
-        GRAPH[Knowledge Graph screen<br/>full-viewport, source filter]
-        PIPE[Pipelines screen<br/>harvest→normalize→ontology per source + scheduler]
-        CHAT[Chat screen<br/>agent / KB / direct-model selector]
-        AGTS[Agents screen<br/>agent editor, MCP tool assignment]
-        MCPUI[Settings → MCP<br/>external MCP server registry]
+    subgraph UI["UI — React, port 3000"]
+        GRAPH[Knowledge Graph]
+        PIPE[Pipelines]
+        CHAT[Chat]
+        AGTS[Agents]
+        MCPUI[Settings - MCP]
     end
 
-    subgraph Control["Control plane (FastAPI, port 8000)"]
-        REG[(Source registry<br/>Postgres: sources)]
-        API[Registry API<br/>POST /sources · GET /sources · GET /runs]
-        NORM_API[POST /normalize/{run_id}]
+    subgraph API["Control plane — FastAPI, port 8000"]
+        REG[(sources table)]
+        SRVC[Source registry API]
+        NORM_API[POST /normalize/run_id]
         ONT_API[POST /ontology/extract]
-        CHAT_API[POST /agents/chat<br/>Anthropic agentic loop]
-        SCH[Scheduler toggle<br/>per-source cron config]
+        CHAT_API[POST /agents/chat]
         DSP[Dispatcher]
     end
 
-    subgraph Harvest["Harvester framework (containers / jobs)"]
+    subgraph Harvest["Harvesters — one-off containers"]
         HG[Git harvester]
         HD[Doc harvester]
         HU[Upload harvester]
     end
 
-    subgraph Process["Normalization + ontology"]
-        RAW[(Raw payloads<br/>Postgres jsonb / ObjectStore)]
-        NORM[Tier 1 Normalizer<br/>per-source: entities, edges, chunks, embeddings]
-        ONT[Tier 2 Ontology extractor<br/>cross-source: SQL lineage, imports, name matching]
+    subgraph Process["Normalization and ontology"]
+        RAW[(Raw payloads)]
+        NORM[Tier 1 Normalizer - per source]
+        ONT[Tier 2 Ontology extractor - cross source]
     end
 
-    subgraph Store["Knowledge store (Postgres + pgvector)"]
+    subgraph Store["Knowledge store — Postgres + pgvector"]
         ENT[(entities)]
         EDG[(edges)]
-        CHK[(chunks + pgvector)]
-        PRP[(proposed_changes)]
+        CHK[(chunks)]
         RUNS[(harvest_runs)]
     end
 
-    subgraph Serve["Serving (containers)"]
-        MCP_SRV[MCP server<br/>port 8003 · streamable-HTTP]
-        EXT_MCP[External MCP servers<br/>user-registered via UI]
+    subgraph Serve["Serving — port 8003"]
+        MCP_SRV[MCP server - streamable HTTP]
+        EXT_MCP[External MCP servers]
     end
 
-    ANTHROPIC[Anthropic API<br/>claude-sonnet-4-5]
+    ANTHROPIC[Anthropic API]
 
     G & D & U & X --> Harvest
-    API --> REG
-    REG -->|source.registered| DSP
-    DSP --> Harvest
+    SRVC --> REG
+    REG --> DSP --> Harvest
     Harvest --> RAW --> NORM
-    NORM --> ENT & EDG & CHK & RUNS
     NORM_API --> NORM
+    NORM --> ENT & EDG & CHK & RUNS
     ONT_API --> ONT
-    ONT --> ENT & EDG & PRP
+    ONT --> ENT & EDG
     ENT & EDG & CHK --> MCP_SRV
     CHAT_API --> ANTHROPIC
     CHAT_API --> MCP_SRV
     CHAT_API --> EXT_MCP
-    UI --> API
-    UI --> CHAT_API
-    MCPUI -.->|localStorage| EXT_MCP
+    UI --> SRVC
+    UI --> NORM_API & ONT_API & CHAT_API
+    MCPUI -.->|stored in localStorage| EXT_MCP
 ```
 
 ### Layers and responsibilities
