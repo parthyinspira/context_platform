@@ -5,72 +5,66 @@ End goal: expose the platform as MCP servers so agents and LLMs can discover, qu
 ## 1. System topology
 
 ```mermaid
-flowchart TD
-    subgraph Sources
+flowchart LR
+    %% ── Data pipeline (top row) ──────────────────────────────────────
+    subgraph SRC["Sources"]
         G[Git repos]
         D[Doc sites]
-        U[Uploads GCS]
-        X[Future: Snowflake / Tableau / Confluence]
+        U[Uploads]
     end
 
-    subgraph UI["UI — React, port 3000"]
-        GRAPH[Knowledge Graph]
-        PIPE[Pipelines]
-        CHAT[Chat]
-        AGTS[Agents]
-        MCPUI[Settings - MCP]
-    end
-
-    subgraph API["Control plane — FastAPI, port 8000"]
-        REG[(sources table)]
-        SRVC[Source registry API]
-        NORM_API[POST /normalize/run_id]
-        ONT_API[POST /ontology/extract]
-        CHAT_API[POST /agents/chat]
-        DSP[Dispatcher]
-    end
-
-    subgraph Harvest["Harvesters — one-off containers"]
+    subgraph HAR["Harvesters — one-off containers"]
         HG[Git harvester]
         HD[Doc harvester]
         HU[Upload harvester]
     end
 
-    subgraph Process["Normalization and ontology"]
-        RAW[(Raw payloads)]
-        NORM[Tier 1 Normalizer - per source]
-        ONT[Tier 2 Ontology extractor - cross source]
+    subgraph PROC["Normalize and Ontology"]
+        T1[Tier 1 — per source\nentities - edges - chunks]
+        T2[Tier 2 — cross source\nSQL lineage - imports]
+        T1 --> T2
     end
 
-    subgraph Store["Knowledge store — Postgres + pgvector"]
+    subgraph STORE["Knowledge Store — Postgres + pgvector"]
         ENT[(entities)]
         EDG[(edges)]
-        CHK[(chunks)]
+        CHK[(chunks + pgvector)]
         RUNS[(harvest_runs)]
     end
 
-    subgraph Serve["Serving — port 8003"]
-        MCP_SRV[MCP server - streamable HTTP]
-        EXT_MCP[External MCP servers]
+    MCP["MCP Server\nport 8003\nsearch - graph - entity"]
+
+    SRC --> HAR --> PROC --> STORE --> MCP
+
+    %% ── Control and UI (bottom row) ──────────────────────────────────
+    subgraph UI["React UI — port 3000"]
+        GRAPH[Knowledge Graph]
+        PIPE[Pipelines]
+        CHAT[Chat]
+        AGTS[Agents]
+        MCPUI[MCP Settings]
     end
 
-    ANTHROPIC[Anthropic API]
+    subgraph CTRL["Control Plane — FastAPI port 8000"]
+        SRVC[Sources API]
+        DSP[Dispatcher]
+        SRVC --> DSP
+    end
 
-    G & D & U & X --> Harvest
-    SRVC --> REG
-    REG --> DSP --> Harvest
-    Harvest --> RAW --> NORM
-    NORM_API --> NORM
-    NORM --> ENT & EDG & CHK & RUNS
-    ONT_API --> ONT
-    ONT --> ENT & EDG
-    ENT & EDG & CHK --> MCP_SRV
-    CHAT_API --> ANTHROPIC
-    CHAT_API --> MCP_SRV
-    CHAT_API --> EXT_MCP
-    UI --> SRVC
-    UI --> NORM_API & ONT_API & CHAT_API
-    MCPUI -.->|stored in localStorage| EXT_MCP
+    subgraph CHATAPI["Chat and Agents API"]
+        CA[POST /agents/chat\nagentic loop]
+        EXT[External MCP servers\nstored in localStorage]
+    end
+
+    ANT["Anthropic API\nclaude-sonnet-4-5"]
+
+    UI --> CTRL
+    UI --> CHATAPI
+    DSP -.->|dispatch| HAR
+    CHATAPI --> ANT
+    MCP -->|tool calls| CA
+    STORE -->|read| CA
+    MCPUI -.->|register| EXT
 ```
 
 ### Layers and responsibilities
