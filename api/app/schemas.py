@@ -22,16 +22,22 @@ class SourceCreate(BaseModel):
     type: str
     uri: str
     schedule: str
-    credentials_ref: str
+    credentials_ref: str = "public"  # optional — blank or omitted means no auth (public repo)
     owner: str
     sensitivity: str
 
-    @field_validator("type", "uri", "credentials_ref", "owner")
+    @field_validator("type", "uri", "owner")
     @classmethod
     def not_blank(cls, value: str) -> str:
         if not value or not value.strip():
             raise ValueError("must not be blank")
         return value
+
+    @field_validator("credentials_ref")
+    @classmethod
+    def coerce_credentials_ref(cls, value: str) -> str:
+        # Treat blank/whitespace-only as "public" (unauthenticated access)
+        return value.strip() if value and value.strip() else "public"
 
     @field_validator("schedule")
     @classmethod

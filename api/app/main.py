@@ -62,14 +62,20 @@ from app.routes_discovery import router as discovery_router  # noqa: E402
 from app.routes_entity import router as entity_router  # noqa: E402
 from app.routes_graph import router as graph_router  # noqa: E402
 from app.routes_lineage import router as lineage_router  # noqa: E402
+from app.routes_chat import router as chat_router  # noqa: E402
+from app.routes_normalize import router as normalize_router  # noqa: E402
+from app.routes_ontology import router as ontology_router  # noqa: E402
 from app.routes_runs import router as runs_router  # noqa: E402
 
 app.include_router(agents_router, tags=["agents"])
+app.include_router(chat_router, tags=["chat"])
 app.include_router(discovery_router, tags=["discovery"])
 app.include_router(runs_router, tags=["runs"])
 app.include_router(graph_router, tags=["graph"])
 app.include_router(entity_router, tags=["entity"])
 app.include_router(lineage_router, tags=["lineage"])
+app.include_router(normalize_router, tags=["normalize"])
+app.include_router(ontology_router, tags=["ontology"])
 
 
 @app.post("/sources", status_code=201, response_model=SourceOut)
@@ -131,7 +137,7 @@ def list_sources(
     conn = connection_factory()
     try:
         cur = conn.cursor()
-        cur.execute(f"SELECT {_SOURCE_COLUMNS} FROM sources ORDER BY id")
+        cur.execute(f"SELECT {_SOURCE_COLUMNS} FROM sources WHERE status != 'disabled' ORDER BY id")
         rows = cur.fetchall()
     finally:
         conn.close()

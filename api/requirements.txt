@@ -5,3 +5,7 @@ psycopg[binary]==3.2.3
 # registry's "import every known harvester package" pattern, see
 # harvesters/__init__.py), whose framework.stack_rules loads YAML rule files.
 pyyaml==6.0.2
+openpyxl==3.1.5
+sqlglot==25.24.5
+anthropic==0.40.0
+httpx==0.27.2

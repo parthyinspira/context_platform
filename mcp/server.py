@@ -1,6 +1,4 @@
 """context-retrieval MCP server — streamable HTTP transport."""
-from __future__ import annotations
-
 import os
 from typing import Any
 
@@ -9,7 +7,7 @@ from mcp.server.fastmcp import FastMCP
 
 from search import search_context
 
-mcp = FastMCP("context-retrieval")
+mcp = FastMCP("context-retrieval", host="0.0.0.0", port=8080)
 
 
 def _get_conn() -> Any:
@@ -39,4 +37,4 @@ def search_context_tool(query: str, limit: int = 5) -> list[dict]:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)
+    mcp.run(transport="streamable-http")
