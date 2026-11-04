@@ -13,57 +13,68 @@ flowchart TD
         X[Later: Snowflake, Tableau, Salesforce, SharePoint, Confluence]
     end
 
-    subgraph Control["Control plane"]
+    subgraph UI["UI (React, port 3000)"]
+        NAV[NavRail: Graph · Pipelines · Sources · Agents · Chat · MCP]
+        GRAPH[Knowledge Graph screen<br/>full-viewport, source filter]
+        PIPE[Pipelines screen<br/>harvest→normalize→ontology per source + scheduler]
+        CHAT[Chat screen<br/>agent / KB / direct-model selector]
+        AGTS[Agents screen<br/>agent editor, MCP tool assignment]
+        MCPUI[Settings → MCP<br/>external MCP server registry]
+    end
+
+    subgraph Control["Control plane (FastAPI, port 8000)"]
         REG[(Source registry<br/>Postgres: sources)]
-        API[Registry API<br/>POST /sources]
-        SCH[Cloud Scheduler] --> DSP[Dispatcher]
-        WH[Git webhook / GCS finalize]
+        API[Registry API<br/>POST /sources · GET /sources · GET /runs]
+        NORM_API[POST /normalize/{run_id}]
+        ONT_API[POST /ontology/extract]
+        CHAT_API[POST /agents/chat<br/>Anthropic agentic loop]
+        SCH[Scheduler toggle<br/>per-source cron config]
+        DSP[Dispatcher]
     end
 
     subgraph Harvest["Harvester framework (containers / jobs)"]
         HG[Git harvester]
         HD[Doc harvester]
         HU[Upload harvester]
-        HX[Future harvesters]
     end
 
     subgraph Process["Normalization + ontology"]
         RAW[(Raw payloads<br/>Postgres jsonb / ObjectStore)]
-        NORM[Normalizer<br/>entities, edges, chunks, embeddings]
-        ONT[Ontology updater<br/>propose, validate, apply]
+        NORM[Tier 1 Normalizer<br/>per-source: entities, edges, chunks, embeddings]
+        ONT[Tier 2 Ontology extractor<br/>cross-source: SQL lineage, imports, name matching]
     end
 
-    subgraph Store["Knowledge store (Cloud SQL Postgres)"]
+    subgraph Store["Knowledge store (Postgres + pgvector)"]
         ENT[(entities)]
         EDG[(edges)]
         CHK[(chunks + pgvector)]
         PRP[(proposed_changes)]
+        RUNS[(harvest_runs)]
     end
 
     subgraph Serve["Serving (containers)"]
-        CTX[Context service<br/>hybrid search + graph traversal]
-        MCP1[Retrieval MCP]
-        MCP2[Admin MCP]
-        MCP3[Live MCPs<br/>Git, Snowflake, ...]
+        MCP_SRV[MCP server<br/>port 8003 · streamable-HTTP]
+        EXT_MCP[External MCP servers<br/>user-registered via UI]
     end
 
-    AGENT[Agents / LLMs]
+    ANTHROPIC[Anthropic API<br/>claude-sonnet-4-5]
 
     G & D & U & X --> Harvest
     API --> REG
     REG -->|source.registered| DSP
     DSP --> Harvest
-    WH --> DSP
     Harvest --> RAW --> NORM
-    NORM --> ENT & EDG & CHK
-    NORM -->|harvest.completed| ONT
-    ONT --> ENT & EDG
-    ONT --> PRP
-    ONT -->|ontology.updated| CTX
-    ENT & EDG & CHK --> CTX
-    CTX --> MCP1
-    API --> MCP2
-    MCP1 & MCP2 & MCP3 --> AGENT
+    NORM --> ENT & EDG & CHK & RUNS
+    NORM_API --> NORM
+    ONT_API --> ONT
+    ONT --> ENT & EDG & PRP
+    ENT & EDG & CHK --> MCP_SRV
+    CHAT_API --> ANTHROPIC
+    CHAT_API --> MCP_SRV
+    CHAT_API --> EXT_MCP
+    UI --> API
+    UI --> CHAT_API
+    MCPUI -.->|localStorage| EXT_MCP
 ```
 
 ### Layers and responsibilities
@@ -71,13 +82,26 @@ flowchart TD
 | Layer | Component | Runtime (local / GCP / Azure) | Responsibility |
 |---|---|---|---|
 | 0 Sources | Git, docs, uploads | n/a | Systems of record; never modified |
-| 1 Control plane | Registry API, dispatcher, scheduler, webhooks | compose scheduler + Postgres outbox / Cloud Run, Scheduler, Pub/Sub / Container Apps, Service Bus | Decide what to harvest and when |
-| 2 Harvest | One harvester per source type | one-off containers / Cloud Run Jobs / Container Apps Jobs | discover, fetch, emit raw objects incrementally |
-| 3 Normalize | Normalizer | container job / Cloud Run Job / Container Apps Job | Raw to entities, edges, chunks, embeddings |
-| 4 Ontology | Updater | container job / Cloud Run Job / Container Apps Job | Apply deterministic facts, queue uncertain ones |
-| 5 Store | entities, edges, chunks, proposed_changes | Cloud SQL + pgvector | Single source of truth for knowledge |
-| 6 Serve | Context service | container / Cloud Run / Container Apps | Hybrid search, graph traversal, ACL filtering |
-| 7 Interface | MCP servers | container / Cloud Run / Container Apps | The contract agents use |
+| 1 UI | React app (Vite) | Nginx container / Cloud Run / Container Apps | Knowledge graph, pipelines, chat, agent editor, MCP settings |
+| 2 Control plane | Registry API (FastAPI), dispatcher, scheduler | compose scheduler + Postgres outbox / Cloud Run, Scheduler, Pub/Sub / Container Apps, Service Bus | CRUD sources, trigger harvests, expose run history |
+| 3 Harvest | One harvester per source type | one-off containers / Cloud Run Jobs / Container Apps Jobs | discover, fetch, emit raw objects incrementally |
+| 4 Normalize (Tier 1) | Per-source normalizer — `POST /normalize/{run_id}` | same API container | Raw → entities, edges, chunks, embeddings per source |
+| 5 Ontology (Tier 2) | Cross-source extractor — `POST /ontology/extract` | same API container | SQL lineage (sqlglot), Python imports, name matching → cross-source edges |
+| 6 Store | entities, edges, chunks, proposed_changes, harvest_runs | Cloud SQL + pgvector | Single source of truth for knowledge |
+| 7 Serve | MCP server (`/mcp`, streamable-HTTP) | container / Cloud Run / Container Apps | search_context, get_entity, get_graph, get_lineage, list_sources |
+| 8 Chat | `POST /agents/chat` → Anthropic agentic loop | same API container | Up to 6 tool-call rounds; proxies external MCP servers |
+
+### UI screens (hackathon)
+
+| Screen | Nav key | Purpose |
+|---|---|---|
+| Knowledge Graph | Graph | Full-viewport force-directed graph; source filter, entity legend, Build Ontology toggle |
+| Pipelines | Pipelines | Per-source pipeline cards: Harvest → Normalize → Build Ontology; per-source scheduler toggle |
+| Sources | Sources | Register, list, delete sources; launch harvest runs |
+| Agents | Agents | Agent library (demo + custom); editor with system prompt, model, tool assignment |
+| Chat | Chat | Unified dropdown: select agent / Knowledge Graph / Direct Model; Anthropic API backend |
+| MCP Tools | MCP | Built-in tool docs; external MCP server management (stored in localStorage) |
+| Settings | Settings | Models, Chunking, Extraction, Project config |
 
 ## 2. Data hierarchy
 
